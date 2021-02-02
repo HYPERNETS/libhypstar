@@ -8,6 +8,7 @@
 #include <math.h>
 #include <iostream>
 #include <fstream>
+#include <time.h>
 
 #define LOG(level, stream, format, ...) outputLog(level, #level, stream, format, ##__VA_ARGS__)
 #define LOG_DEBUG(format, ...) LOG(DEBUG, stdout, format, ##__VA_ARGS__)
@@ -385,6 +386,12 @@ int Hypstar::readData(float timeout_s)
 		if (rxbuf[count - 2] == BAD_CRC)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - bad crc\n", BAD_CRC);
+			char out[count*3 +3];
+			for (int i = 0; i < count; i++)
+			{
+				sprintf(&out[i*3], "%.2X ", rxbuf[i]);
+			}
+			LOG_ERROR("%s %s\n", "<<", out);
 			throw eBadTxCRC();
 		}
 
@@ -1162,34 +1169,43 @@ unsigned short Hypstar::getLastSpectraCaptureMemorySlots(unsigned short *pMemory
 	return slot_count;
 }
 
+unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlotId, s_spectrum_dataset * pSpectraDataTarget)
+{
+	unsigned short spectrum_length = 0;
+	memset(pSpectraDataTarget->spectrum_body, 0, MAX_SPEC_LENGTH * sizeof(unsigned short));
+	try
+	{
+		spectrum_length = GET_PACKETED_DATA(GET_SPEC, (unsigned char*)&memorySlotId, (unsigned short)sizeof(memorySlotId), (unsigned char*)pSpectraDataTarget);
+	}
+	catch (eBadRxCRC &e)
+	{
+		LOG_ERROR("Bad spectrum CRC, retrying\n");
+		return getSingleSpectrumFromMemorySlot(memorySlotId, pSpectraDataTarget);
+	}
+	LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
+			spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
+			*((uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4) ));
+
+	// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
+	if (pSpectraDataTarget->spectrum_header.spectrum_config.swir)
+	{
+		memcpy(&pSpectraDataTarget->crc32_spaceholder, (uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4), sizeof(typeof(pSpectraDataTarget->crc32_spaceholder)));
+		memset(&pSpectraDataTarget->spectrum_body[256], 0, 4);
+	}
+	return spectrum_length;
+}
+
 unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds, unsigned short numberOfCaptures, struct s_spectrum_dataset *pSpectraDataTarget)
 {
 	unsigned char *p_spec_data;
 	unsigned short n = 0, n_success = 0;
-	unsigned short spectrum_length = 0;
 
 	try
 	{
 		for (n = 0; n < numberOfCaptures; n++)
 		{
 			p_spec_data = (unsigned char*)(pSpectraDataTarget + n_success);
-
-			// clear for CRC calculation
-			memset(pSpectraDataTarget[n_success].spectrum_body, 0, MAX_SPEC_LENGTH * sizeof(unsigned short));
-			LOG_DEBUG("Getting spec %d from slot %d\n", n, pMemorySlotIds[n]);
-
-			spectrum_length = GET_PACKETED_DATA(GET_SPEC, (unsigned char*)&pMemorySlotIds[n], sizeof(pMemorySlotIds[n]), p_spec_data);
-			LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
-					spectrum_length, p_spec_data, (void*)((long)p_spec_data+spectrum_length-4),
-					*((uint32_t*) ((long)p_spec_data+spectrum_length-4) ));
-
-			// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
-			if (pSpectraDataTarget[n].spectrum_header.spectrum_config.swir)
-			{
-				memcpy(&pSpectraDataTarget[n].crc32_spaceholder, (uint32_t*) ((long)p_spec_data+spectrum_length-4), sizeof(typeof(pSpectraDataTarget[n_success].crc32_spaceholder)));
-				memset(&pSpectraDataTarget[n].spectrum_body[256], 0, 4);
-			}
-
+			getSingleSpectrumFromMemorySlot(pMemorySlotIds[n], (s_spectrum_dataset *)p_spec_data);
 			n_success++;
 		}
 	}
@@ -1199,12 +1215,6 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 	}
 
 	return n_success;
-}
-
-
-unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlotId, struct s_spectrum_dataset * pSpectraDataTarget)
-{
-	return getSpectraFromMemorySlots(&memorySlotId, 1, pSpectraDataTarget);
 }
 
 unsigned short Hypstar::acquireSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
