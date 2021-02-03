@@ -88,7 +88,7 @@ class EnvironmentLogEntry(Structure):
 		self.humidity_sensor_temp = self.humidity_sensor_temperature / 100
 		self.humidity = self.humidity_sensor_humidity/10
 		self.pressure_sensor_temp = self.pressure_sensor_temperature / 100
-		self.pressure = self.pressure_sensor_pressure / 10
+		self.pressure = self.pressure_sensor_pressure / 100
 		self.internal_ambient_temp = self.internal_ambient_temperature
 		self.swir_body_temperature = self.swir_body_temperature if self.swir_body_temperature > -40 else 'N/A'
 		self.swir_heatsink_temperature = self.swir_heatsink_temperature if self.swir_heatsink_temperature > -40 else 'N/A'
@@ -116,19 +116,19 @@ class EnvironmentLogEntry(Structure):
 			'\t3.3 V digital: \t\t{}\n' \
 			'\t3.3 V camera: \t\t{}\n' \
 			'{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
-						   self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
-						   self.swir_body_temperature, self.swir_heatsink_temperature,
-						   self.humidity, self.pressure / 10,
-						   self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
-						   self.accelerometer_data)
+						self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
+						self.swir_body_temperature, self.swir_heatsink_temperature,
+						self.humidity, self.pressure / 10,
+						self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
+						self.accelerometer_data)
 
 	# Joel already has a bunch of processing scripts using default packet layout
 	def get_csv_line(self):
 		return "Env:\t{}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t" \
 			"{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(
-					datetime.fromtimestamp(self.timestamp / 1000),
-					self.humidity_sensor_temp * 0.01, self.humidity * 0.1,
-					self.pressure_sensor_temp * 0.01, self.pressure * 0.01,
+					datetime.fromtimestamp(self.timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S'),
+					self.humidity_sensor_temp, self.humidity,
+					self.pressure_sensor_temp, self.pressure,
 					self.internal_ambient_temp, self.swir_body_temperature, self.swir_heatsink_temperature,
 					self.common_3V3.total_energy, self.digital_electronics_3V3.total_energy, self.camera_3V3.total_energy,
 					self.common_3V3.voltage, self.digital_electronics_3V3.voltage, self.camera_3V3.voltage,
