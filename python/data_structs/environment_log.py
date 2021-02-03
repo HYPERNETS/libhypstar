@@ -90,8 +90,8 @@ class EnvironmentLogEntry(Structure):
 		self.pressure_sensor_temp = self.pressure_sensor_temperature / 100
 		self.pressure = self.pressure_sensor_pressure / 10
 		self.internal_ambient_temp = self.internal_ambient_temperature
-		self.swir_body_temperatureemp = self.swir_body_temperature if self.swir_body_temperature > -40 else 'N/A'
-		self.swir_heatsink_temperatureemp = self.swir_heatsink_temperature if self.swir_heatsink_temperature > -40 else 'N/A'
+		self.swir_body_temperature = self.swir_body_temperature if self.swir_body_temperature > -40 else 'N/A'
+		self.swir_heatsink_temperature = self.swir_heatsink_temperature if self.swir_heatsink_temperature > -40 else 'N/A'
 		self.input_12V = PowerBusInfo().parse('input_12v', self)
 		self.optical_multiplexer_12V = PowerBusInfo().parse('multiplexer_12v', self)
 		self.swir_12V = PowerBusInfo().parse('swir_module_12v', self)
@@ -103,21 +103,43 @@ class EnvironmentLogEntry(Structure):
 
 	def __str__(self):
 		return 'TS: {} ({})\n' \
-			   'Temperatures:\n ' \
-			   '\tInternal: {:.2f}, Humidity sensor: {}, Pressure sensor: {}\n' \
-			   '\tSWIR body: {:.2f}, SWIR heatsink: {:.2f}\n' \
-			   'RH: {}%, internal pressure: {} mBar\n' \
-			   'Power buses:\n' \
-			   '\t12 V input: \t\t{}\n' \
-			   '\t12 V Multiplexer: \t{}\n' \
-			   '\t12 V SWIR: \t\t\t{}\n' \
-			   '\t5 V VIS-NIR: \t\t{}\n' \
-			   '\t3.3 V common: \t\t{}\n' \
-			   '\t3.3 V digital: \t\t{}\n' \
-			   '\t3.3 V camera: \t\t{}\n' \
-			   '{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
+			'Temperatures:\n ' \
+			'\tInternal: {:.2f}, Humidity sensor: {}, Pressure sensor: {}\n' \
+			'\tSWIR body: {:.2f}, SWIR heatsink: {:.2f}\n' \
+			'RH: {}%, internal pressure: {} mBar\n' \
+			'Power buses:\n' \
+			'\t12 V input: \t\t{}\n' \
+			'\t12 V Multiplexer: \t{}\n' \
+			'\t12 V SWIR: \t\t\t{}\n' \
+			'\t5 V VIS-NIR: \t\t{}\n' \
+			'\t3.3 V common: \t\t{}\n' \
+			'\t3.3 V digital: \t\t{}\n' \
+			'\t3.3 V camera: \t\t{}\n' \
+			'{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
 						   self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
 						   self.swir_body_temperature, self.swir_heatsink_temperature,
-						   self.humidity, self.pressure,
+						   self.humidity, self.pressure / 10,
 						   self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
 						   self.accelerometer_data)
+
+	# Joel already has a bunch of processing scripts using default packet layout
+	def get_csv_line(self):
+		return "Env:\t{}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t" \
+			"{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(
+					datetime.fromtimestamp(self.timestamp / 1000),
+					self.humidity_sensor_temp * 0.01, self.humidity * 0.1,
+					self.pressure_sensor_temp * 0.01, self.pressure * 0.01,
+					self.internal_ambient_temp, self.swir_body_temperature, self.swir_heatsink_temperature,
+					self.common_3V3.total_energy, self.digital_electronics_3V3.total_energy, self.camera_3V3.total_energy,
+					self.common_3V3.voltage, self.digital_electronics_3V3.voltage, self.camera_3V3.voltage,
+					self.common_3V3.current, self.digital_electronics_3V3.current, self.camera_3V3.current,
+					self.swir_12V.total_energy, self.optical_multiplexer_12V.total_energy, self.vnir_5V.total_energy, self.input_12V.total_energy,
+					self.swir_12V.voltage, self.optical_multiplexer_12V.voltage, self.vnir_5V.voltage, self.input_12V.voltage,
+					self.swir_12V.current, self.optical_multiplexer_12V.current, self.vnir_5V.current, self.input_12V.current
+				)
+
+
+def get_csv_header():
+	return "#Env:\ttimestamp\trh_temp\trh_RH\tpressure_temp\tpressure\tambient_t\tswir_body_t\tswir_sink_t\t" \
+		"e_common_3v3\te_mcu_3v3\te_cam_3v3\tu_common_3v3\tu_mcu_3v3\tu_cam_3v3\ti_common_3v3\ti_mcu_3v3\ti_cam_3v3\t" \
+		"e_swir_12v\te_mux_12v\te_vnir_5v\te_input_12v\tu_swir_12v\tu_mux_12v\tu_vnir_5v\tu_input_12v\ti_swir_12v\ti_mux_12v\ti_vnir_5v\ti_input_12v"
