@@ -260,10 +260,17 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 	{
 		receivedByteCount = readData(timeout_s);
 
-		if ((rxbuf[0] == DONE) && (rxbuf[3] == cmd))
+		if (rxbuf[0] == DONE)
 		{
-			LOG_DEBUG("Got DONE for %s\n", cmd_str);
-			return true;
+			if (rxbuf[3] == cmd)
+			{
+				LOG_DEBUG("Got DONE for %s\n", cmd_str);
+				return true;
+			}
+			else
+			{
+				LOG_ERROR("Got unexpected DONE for %s\n", cmd_str);
+			}
 		}
 	}
 
@@ -540,6 +547,16 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			{
 				// try again if instrument reported Tx crc error
 				LOG_DEBUG("Instrument reported TX CRC error\n");
+				char out[(paramLength+10)*3 +3];
+				sprintf(out, "%.2X ", cmd);
+				int l = paramLength + 2 + 2;
+				sprintf(&out[3], "%.2X ", l & 0xFF);
+				sprintf(&out[6], "%.2X ", (l >> 8) & 0xFF);
+				for (int i = 0; i < paramLength; i++)
+				{
+					sprintf(&out[9+i*3], "%.2X ", pPacketParams[i]);
+				}
+				LOG_ERROR("%s %s\n", "Was >>", out);
 				continue;
 			}
 			catch (eBadRx &e)

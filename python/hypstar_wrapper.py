@@ -128,7 +128,7 @@ class Hypstar:
 
 	# currently returns size in data packets, not bytes
 	def capture_JPEG_image(self, flip=False, mirror=False, scale=False):
-		self.lib.hypstar_capture_JPEG_image(self.handle, flip, mirror)
+		return self.lib.hypstar_capture_JPEG_image(self.handle, flip, mirror)
 
 	# returns properly formatted JPEG image as a byte stream
 	def download_JPEG_image(self):
@@ -147,7 +147,7 @@ class Hypstar:
 	def shutdown_SWIR_module_thermal_control(self):
 		r = self.lib.hypstar_shutdown_TEC(self.handle)
 		if not r:
-			raise Exception("Did not succedd in shutting down SWIR TEC")
+			raise Exception("Did not succeed in shutting down SWIR TEC")
 		return r
 
 	def define_argument_types(self):
