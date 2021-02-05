@@ -22,7 +22,7 @@
 #include <iostream>
 
 using namespace LibHypstar;
-
+#define LOG(level, stream, format, ...) printLogStatic(level, #level, stream, format, ##__VA_ARGS__)
 /**
  * Main driver class. Handles communications with the instrument
  * with input parameter sanity checks and some level of error recovery.
@@ -50,13 +50,15 @@ class Hypstar
 				// if found, return pointer to that
 				if (portname.compare(i.port) == 0)
 				{
-					i.instance->outputLog(INFO, "INFO", stdout, "Returning existing driver instance %p\n", i.instance);
+//					i.instance->printLog(INFO, "INFO", stdout, "Returning existing driver instance %p\n", i.instance);
+					LOG(INFO, stdout, "Returning existing driver instance %p\n", i.instance);
 					return i.instance;
 				}
 			}
 			// otherwise instantiate and append to instance_holder
 			Hypstar* h = new Hypstar(portname);
-			h->outputLog(INFO, "INFO", stdout, "Created driver instance %p\n", static_cast<void*>(h));
+//			h->printLog(INFO, "INFO", stdout, "Created driver instance %p\n", static_cast<void*>(h));
+			LOG(INFO, stdout, "Created driver instance %p\n", static_cast<void*>(h));
 			s_hypstar_instance new_hs = {
 					.port = portname,
 					.instance = h
@@ -304,6 +306,14 @@ class Hypstar
 		 */
 		bool switchFirmwareSlot(void);
 
+		/**
+		 * \brief	listens on given serial port for instrument BOOTED message at default baudrate
+		 * \param portname serial port name (e.g. /dev/ttyUSB0
+		 * \param timeout_s for how long should we wait
+		 * \return status of execution: True if there was a response, false if there were none.
+		 */
+		static bool waitForInstrumentToBoot(std::string portname, float timeout_s);
+
 		/* General information about the instrument */
 		struct s_booted hw_info;
 		struct s_firwmare_info firmware_info;
@@ -334,6 +344,12 @@ class Hypstar
 		void logBinPacket(const char * direction, unsigned char * pPacket, int packetLength);
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
+		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
+		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length);
+		static void printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args);
+		static void printLogStatic(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
+		static linuxserial* getSerialPort(std::string portname, int baudrate);
+
 		linuxserial *hnport; //serial port object
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 		e_loglevel _loglevel = ERROR;
@@ -359,6 +375,7 @@ extern "C"
 
 	hypstar_t *hypstar_init(const char *port);
 	void hypstar_close(hypstar_t *hs);
+	bool hypstar_wait_for_instrument(const char *port, float timeout_s);
 
 	bool hypstar_set_baudrate(hypstar_t *hs, e_baudrate new_baudrate);
 	uint64_t hypstar_get_time(hypstar_t *hs);

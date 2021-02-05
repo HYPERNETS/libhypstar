@@ -31,14 +31,15 @@ class Hypstar:
 	lib = None
 	hw_info = None
 
-	def __init__(self, port):
+	def __init__(self, port, dummy=False):
 		self.lib = CDLL('libhypstar.so')
 		port = create_string_buffer(bytes(port, 'ascii'))
 		self.define_argument_types()
-		self.handle = self.lib.hypstar_init(port)
-		if not self.handle:
-			raise IOError("Could not retrieve instrument instance!")
-		self.get_hw_info()
+		if not dummy:
+			self.handle = self.lib.hypstar_init(port)
+			if not self.handle:
+				raise IOError("Could not retrieve instrument instance!")
+			self.get_hw_info()
 
 	def __del__(self):
 		self.lib.hypstar_close(self.handle)
@@ -180,3 +181,12 @@ class Hypstar:
 		cb_func_def = CFUNCTYPE(c_void_p, POINTER(HypstarAutoITStatus))
 		cb_func = cb_func_def(self.callback_test_fn)
 		self.lib.hypstar_test_callback(self.handle, cb_func, 1, 2)
+
+
+def wait_for_instrument(port, timeout_s):
+	cls = Hypstar(port, dummy=True)
+	cls.lib = CDLL('libhypstar.so')
+	port_str = create_string_buffer(bytes(port, 'ascii'))
+	cls.lib.hypstar_wait_for_instrument.argtypes = [c_char_p, c_float]
+	cls.lib.hypstar_wait_for_instrument.restype = c_bool
+	return cls.lib.hypstar_wait_for_instrument(port_str, timeout_s)

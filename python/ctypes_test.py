@@ -5,14 +5,22 @@ from PIL import Image
 
 from .data_structs.hardware_info import HypstarSupportedBaudRates
 from .data_structs.spectrum_raw import RadiometerType, RadiometerEntranceType
-from .hypstar_wrapper import Hypstar, HypstarLogLevel
+from .hypstar_wrapper import Hypstar, HypstarLogLevel, wait_for_instrument
 
 serial_port = '/dev/ttyUSB0'
 
 
+class CtypeTestsNoInit(unittest.TestCase):
+
+	def test_wait_for_instrument_on_port_fail(self):
+		assert wait_for_instrument(serial_port, 15) == False
+
+	def test_wait_for_instrument_on_port_succeed(self):
+		assert wait_for_instrument(serial_port, 15) == True
+
+
 class CtypeTests(unittest.TestCase):
 
-	@classmethod
 	def setUp(cls):
 		try:
 			cls.radiometer = Hypstar(serial_port)
