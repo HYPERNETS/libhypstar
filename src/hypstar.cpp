@@ -603,18 +603,28 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 {
 	unsigned short spectrum_length = 0;
 	memset(pSpectraDataTarget->spectrum_body, 0, MAX_SPEC_LENGTH * sizeof(unsigned short));
-	try
+
+	int retries = 1;
+	for (; retries <= CMD_RETRY; retries++)
 	{
-		spectrum_length = GET_PACKETED_DATA(GET_SPEC, (unsigned char*)&memorySlotId, (unsigned short)sizeof(memorySlotId), (unsigned char*)pSpectraDataTarget);
+		try
+		{
+			spectrum_length = GET_PACKETED_DATA(GET_SPEC, (unsigned char*)&memorySlotId, (unsigned short)sizeof(memorySlotId), (unsigned char*)pSpectraDataTarget);
+		}
+		catch (eBadRxCRC &e)
+		{
+			LOG_ERROR("Bad spectrum CRC, retrying\n", retries+1);
+			continue;
+		}
+		LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
+				spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
+				*((uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4) ));
+		break;
 	}
-	catch (eBadRxCRC &e)
+	if (retries == CMD_RETRY)
 	{
-		LOG_ERROR("Bad spectrum CRC, retrying\n");
-		return getSingleSpectrumFromMemorySlot(memorySlotId, pSpectraDataTarget);
+		LOG_ERROR("Failed to download spectrum from slot %d in % retries", memorySlotId, retries);
 	}
-	LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
-			spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
-			*((uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4) ));
 
 	// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
 	if (pSpectraDataTarget->spectrum_header.spectrum_config.swir)
