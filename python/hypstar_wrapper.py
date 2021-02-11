@@ -114,6 +114,8 @@ class Hypstar:
 		return self.lib.hypstar_capture_spectra(self.handle, spectrum_type, entrance, vnir_int_time_ms, swir_int_time_ms, scan_count, series_time_max_s)
 
 	def get_last_capture_spectra_memory_slots(self, count):
+		if count == 0:
+			raise Exception('No memory slot count provided')
 		slots = (c_uint16 * count)()
 		r = self.lib.hypstar_get_last_capture_memory_slots(self.handle, pointer(slots), count)
 		if r != count:
@@ -121,6 +123,8 @@ class Hypstar:
 		return slots
 
 	def download_spectra(self, memory_slots):
+		if len(memory_slots) == 0:
+			raise Exception('Missing memory slot IDs')
 		spectra = (HypstarSpectrum * (len(memory_slots)))()
 		r = self.lib.hypstar_download_spectra(self.handle, memory_slots, len(memory_slots), pointer(spectra))
 		if r != len(memory_slots):

@@ -1076,6 +1076,9 @@ int Hypstar::readData(float timeout_s)
 		case BAD_LENGTH:
 			LOG_ERROR("bad length\n");
 			break;
+		case CAM_ERROR_TIMEOUT:
+			LOG_ERROR("camera capture timeout (too dark?)\n");
+			break;
 		case BAD_PARM:
 			for (unsigned short j = 0; j < n_errors; j++)
 			{
@@ -1111,7 +1114,6 @@ int Hypstar::readData(float timeout_s)
 				case BAD_RESOLUTION:
 					error_ss << "Parameter " << parm2 << " error - bad image resolution\n";
 					break;
-
 				default:
 					error_ss << "Parameter " << parm2 << " error -  - unknown error "  << errcode2 << "\n";
 					break;
@@ -1613,7 +1615,7 @@ unsigned short hypstar_capture_spectra(hypstar_t *hs, enum e_radiometer spec, en
 
 unsigned short hypstar_get_last_capture_memory_slots(hypstar_t *hs, unsigned short *target, unsigned short number_of_captures)
 {
-	if (hs == NULL)
+	if ((hs == NULL) || (target == NULL))
 	{
 		return 0;
 	}
@@ -1623,7 +1625,7 @@ unsigned short hypstar_get_last_capture_memory_slots(hypstar_t *hs, unsigned sho
 
 unsigned short hypstar_download_spectra(hypstar_t *hs, unsigned short *memory_slots, unsigned short number_of_captures, s_spectrum_dataset *target)
 {
-	if (hs == NULL)
+	if ((hs == NULL) || (target == NULL))
 	{
 		return 0;
 	}

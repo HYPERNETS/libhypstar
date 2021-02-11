@@ -87,6 +87,7 @@
 // capture image command parser error codes 0xB?
 #define BAD_IMG_TYPE 0xB0
 #define BAD_RESOLUTION 0xB1
+#define CAM_ERROR_TIMEOUT 0xB2
 
 // data packet identifiers 0xB?
 #define SPEC_DATA 0xB1
