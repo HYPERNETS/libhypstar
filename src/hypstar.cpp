@@ -941,6 +941,12 @@ int Hypstar::readPacket(linuxserial *pSerial, unsigned char * pBuf, float timeou
 	if (count != length)
 	{
 		LOG(ERROR, stderr, "Received %d bytes instead of %d bytes\n", count, length);
+		char out[count*3 +3];
+		for (int i = 0; i < count; i++)
+		{
+			sprintf(&out[i*3], "%.2X ", pBuf[i]);
+		}
+		LOG(ERROR, stderr, "<< %s\n", out);
 		throw eBadLength();
 	}
 
@@ -1050,6 +1056,12 @@ int Hypstar::readData(float timeout_s)
 			throw eBadTxCRC();
 		}
 
+		if (rxbuf[count - 2] == CAM_ERROR_TIMEOUT)
+		{
+			LOG_ERROR("Spectrometer responded with error 0x%.2X - camera capture timeout (too dark?)\n", CAM_ERROR_TIMEOUT);
+			throw eBadResponse();
+		}
+
 		// Response packet: response code(1), packet_length(2), cmd_code(1), cmd_packet_length(2), rest_of_cmd_packet(...), error_code(1)
 		cmd_len = *((unsigned short*)(rxbuf + 4));
 
@@ -1075,9 +1087,6 @@ int Hypstar::readData(float timeout_s)
 			break;
 		case BAD_LENGTH:
 			LOG_ERROR("bad length\n");
-			break;
-		case CAM_ERROR_TIMEOUT:
-			LOG_ERROR("camera capture timeout (too dark?)\n");
 			break;
 		case BAD_PARM:
 			for (unsigned short j = 0; j < n_errors; j++)
@@ -1188,6 +1197,12 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 					sprintf(&out[9+i*3], "%.2X ", pPacketParams[i]);
 				}
 				LOG_ERROR("%s %s\n", "Was >>", out);
+				continue;
+			}
+			catch (eBadLength &e)
+			{
+				resend = true;
+				LOG_DEBUG("Got bad packet, requesting resend\n");
 				continue;
 			}
 			catch (eBadRx &e)
