@@ -766,14 +766,14 @@ bool Hypstar::getFirmwareInfo(void)
 bool Hypstar::sendNewFirmwareData(std::string filePath) {
 	std::ifstream binFile(filePath.c_str(), std::ios::in | std::ios::binary);
 	if (!binFile) {
+		LOG_ERROR("No firmware file in path given\n");
 		return false;
 	}
-
 	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(binFile), {});
 
 	binFile.close();
 
-	int crc32_buflen = ((buffer.size() - 4) % 4) ?
+	int crc32_buflen = ((buffer.size()) % 4) ?
 			(buffer.size()) + 4 - ((buffer.size() ) % 4) :
 			(buffer.size());
 
@@ -858,7 +858,7 @@ linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
 bool Hypstar::sendCmd(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength)
 {
 	// packet length 2 octets little endian cmd(1) + length(2) + payload(len) + crc(1)
-	unsigned short txlen = paramLength + 4;
+	unsigned short txlen = paramLength + PACKET_DECORATORS_TOTAL_SIZE;
 
 	// round up to multiple of 32bit words for crc calculation (w/o crc byte itself, thus -1)
 	unsigned short crclen;
@@ -1291,14 +1291,14 @@ bool Hypstar::sendPacketedData(const char commandId, unsigned char * pDataSet, i
 		long chunk = (long)pDatasetHead-(long)pDataSet;
 		LOG_DEBUG("Sending packet %d/%d (bytes [%lu..%lu]/%lu) \n", *pPacketNumber+1, totalPacketCount, chunk, chunk+packetLength,  datasetLength);
 		// @TODO: should unify this in firmware (FW returns DONE, while CAL_COEFS returns ACK on last packet
-		// +4 packetLength here to include space for packet number/total number without affecting tracking of location in dataset
+		// +DATA_PACKET_ID_LEN_SIZE packetLength here to include space for packet number/total number without affecting tracking of location in dataset
 		if (((commandId & 0xFF) == FW_DATA) && ((totalPacketCount-1) == *pPacketNumber))
 		{
-			sendAndWaitForDone(commandId, currentPacket, packetLength+4, pCommandIdString, 5);
+			sendAndWaitForDone(commandId, currentPacket, packetLength+DATA_PACKET_ID_LEN_SIZE, pCommandIdString, 5);
 		}
 		else
 		{
-			sendAndWaitForAcknowledge(commandId, currentPacket, packetLength+4, pCommandIdString);
+			sendAndWaitForAcknowledge(commandId, currentPacket, packetLength+DATA_PACKET_ID_LEN_SIZE, pCommandIdString);
 		}
 
 		// Increment dataset pointer
