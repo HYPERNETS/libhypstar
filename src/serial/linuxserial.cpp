@@ -44,6 +44,17 @@ linuxserial::linuxserial(int baud, const char* port)
 		perror(port);
 		fprintf(stderr, "\n%s: serial port open failed.\n",
 			__PRETTY_FUNCTION__);
+		close(fd);
+		throw eSerialOpenFailed();
+	}
+
+	// lock file to avoid multiple writes from different processes
+	if (ioctl(fd, TIOCEXCL))
+	{
+		perror(port);
+		fprintf(stderr, "\n%s: serial exclusive locking failed.\n",
+			__PRETTY_FUNCTION__);
+		close(fd);
 		throw eSerialOpenFailed();
 	}
 
