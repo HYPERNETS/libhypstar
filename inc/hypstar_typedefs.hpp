@@ -125,7 +125,51 @@
 class eHypstar {};
 class eBadRx: public eHypstar {};
 class eBadLength: public eBadRx {};
-class eBadRxCRC: public eBadRx {};
+class ePacketReceivedTooShort: public eBadLength
+{
+public:
+	int length;
+	ePacketReceivedTooShort(int len)
+	{
+		length = len;
+	}
+};
+class ePacketLengthMismatch: public eBadLength
+{
+public:
+	int lengthInPacket;
+	int packetLengthReceived;
+	char *pBufString;
+	ePacketLengthMismatch(int packetHeaderLength, int receivedLength, char *pReceiveBufferString)
+	{
+		lengthInPacket = packetHeaderLength;
+		packetLengthReceived = receivedLength;
+		pBufString = pReceiveBufferString;
+	}
+};
+
+class eBadRxCRC: public eBadRx
+{
+public:
+	unsigned int crcCalculated;
+	unsigned int crcProvided;
+	eBadRxCRC(unsigned int crcCalc, unsigned int crcIn)
+	{
+		crcCalculated = crcCalc;
+		crcProvided = crcIn;
+	}
+};
+
+class eBadRxPacketCRC: public eBadRxCRC
+{
+	using eBadRxCRC::eBadRxCRC;
+};
+
+class eBadRxDatasetCRC: public eBadRxCRC
+{
+	using eBadRxCRC::eBadRxCRC;
+};
+
 class eBadID: public eBadRx {};
 class eBadTxCRC: public eHypstar {};
 class eBadResponse: public eHypstar {};
@@ -232,7 +276,7 @@ struct __attribute__((__packed__)) s_environment_log_entry
 	int64_t timestamp; 						// == time_t tm, but time_t is 32 bits on 32bit system and 64 bits on 64bit system...
 	int16_t humidity_sensor_temperature;	// units: 0.01 'C
 	uint16_t humidity_sensor_humidity;		// units: 0.1 % relative humidity
-	int32_t pressure_sensor_pressure;		// units: 0.1 mbar
+	int32_t pressure_sensor_pressure;		// units: 0.01 mbar
 	int32_t pressure_sensor_temperature;	// units: 0.01 'C
 	int16_t accelerometer_readings_XYZ[3];	// ADC units
 	float internal_ambient_temperature;
@@ -455,10 +499,16 @@ class Spectrum
 
 enum e_loglevel
 {
-	ERROR = 0,
-	WARNING = 1,
-	INFO = 2,
-	DEBUG = 3,
-	TRACE = 4			// outputs communication data
+	SILENT,
+	ERROR,
+	WARN,
+	INFO,
+	DEBUG,
+	TRACE			// outputs communication data
+};
+
+struct s_outgoing_packet {
+	unsigned char data[RX_BUFFER_SIZE];
+	int length;
 };
 #endif

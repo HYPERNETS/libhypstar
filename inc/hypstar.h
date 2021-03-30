@@ -44,6 +44,7 @@ class Hypstar
 		 */
 		static Hypstar* getInstance(std::string portname)
 		{
+			Hypstar* h;
 			// look through instance_holder for instance with the same portname
 			for (s_hypstar_instance i : Hypstar::instance_holder)
 			{
@@ -51,14 +52,22 @@ class Hypstar
 				if (portname.compare(i.port) == 0)
 				{
 //					i.instance->printLog(INFO, "INFO", stdout, "Returning existing driver instance %p\n", i.instance);
-					LOG(INFO, stdout, "Returning existing driver instance %p\n", i.instance);
+					LOG(DEBUG, stdout, "Returning existing driver instance %p\n", i.instance);
 					return i.instance;
 				}
 			}
 			// otherwise instantiate and append to instance_holder
-			Hypstar* h = new Hypstar(portname);
+			try
+			{
+				h = new Hypstar(portname);
+			}
+			catch (eHypstar &e)
+			{
+				LOG(ERROR, stderr, "Could not establish communications with instrument\n");
+				return NULL;
+			}
 //			h->printLog(INFO, "INFO", stdout, "Created driver instance %p\n", static_cast<void*>(h));
-			LOG(INFO, stdout, "Created driver instance %p\n", static_cast<void*>(h));
+			LOG(DEBUG, stdout, "Created driver instance %p\n", static_cast<void*>(h));
 			s_hypstar_instance new_hs = {
 					.port = portname,
 					.instance = h
@@ -312,7 +321,7 @@ class Hypstar
 		 * \param timeout_s for how long should we wait
 		 * \return status of execution: True if there was a response, false if there were none.
 		 */
-		static bool waitForInstrumentToBoot(std::string portname, float timeout_s);
+		static bool waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel = INFO);
 
 		/* General information about the instrument */
 		struct s_booted hw_info;
@@ -345,14 +354,16 @@ class Hypstar
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
 		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
-		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length);
+		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
+		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
 		static void printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args);
-		static void printLogStatic(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
+		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
 		static linuxserial* getSerialPort(std::string portname, int baudrate);
 
 		linuxserial *hnport; //serial port object
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
-		e_loglevel _loglevel = ERROR;
+		s_outgoing_packet lastOutgoingPacket;
+		e_loglevel _loglevel;
 		unsigned short lastCaptureLongestIntegrationTime_ms;
 };
 

@@ -54,8 +54,7 @@ linuxserial::linuxserial(int baud, const char* port)
 	newtio.c_lflag = 0;
 	newtio.c_cc[VMIN] = 0;
 	newtio.c_cc[VTIME] = 0;
-	tcflush(fd,TCIFLUSH);
-	tcsetattr(fd, TCSANOW, &newtio);
+	tcsetattr(fd, TCSAFLUSH, &newtio);
 
 	// Linux-specific: enable low latency mode (1 ms instead of FTDI default 16 ms)
 	// equivalent to
@@ -63,8 +62,6 @@ linuxserial::linuxserial(int baud, const char* port)
 	ioctl(fd, TIOCGSERIAL, &ser_info);
 	ser_info.flags |= ASYNC_LOW_LATENCY;
 	ioctl(fd, TIOCSSERIAL, &ser_info);
-
-	emptyInputBuf();
 }
 
 

@@ -90,8 +90,8 @@ class EnvironmentLogEntry(Structure):
 		self.pressure_sensor_temp = self.pressure_sensor_temperature / 100
 		self.pressure = self.pressure_sensor_pressure / 100
 		self.internal_ambient_temp = self.internal_ambient_temperature
-		self.swir_body_temperature = self.swir_body_temperature if self.swir_body_temperature > -40 else 'N/A'
-		self.swir_heatsink_temperature = self.swir_heatsink_temperature if self.swir_heatsink_temperature > -40 else 'N/A'
+		# self.swir_body_temperature = self.swir_body_temperature if self.swir_body_temperature > -40 else 'N/A'
+		# self.swir_heatsink_temperature = self.swir_heatsink_temperature if self.swir_heatsink_temperature > -40 else 'N/A'
 		self.input_12V = PowerBusInfo().parse('input_12v', self)
 		self.optical_multiplexer_12V = PowerBusInfo().parse('multiplexer_12v', self)
 		self.swir_12V = PowerBusInfo().parse('swir_module_12v', self)
