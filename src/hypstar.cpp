@@ -76,7 +76,7 @@ Hypstar::~Hypstar()
 
 bool Hypstar::reboot(void)
 {
-	int timeout_s = 15;
+	int timeout_s = 20;
 	sendCmd(REBOOT);
 	try
 	{
@@ -759,18 +759,15 @@ bool Hypstar::saveCalibrationCoefficients(void)
 
 bool Hypstar::getFirmwareInfo(void)
 {
-	if ((firmware_info.firmware_version_minor == 0) && (firmware_info.firmware_version_major == 0))
+	bool r = REQUEST(GET_FW_VER);
+	if (r)
 	{
-		bool r = REQUEST(GET_FW_VER);
-		if (r)
-		{
-			memcpy(&firmware_info, (rxbuf + 3), sizeof(struct s_firwmare_info));
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		memcpy(&firmware_info, (rxbuf + 3), sizeof(struct s_firwmare_info));
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 	return true;
 }

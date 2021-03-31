@@ -36,6 +36,15 @@ Python unit tests can be run using unittest library:
  * Callback functions for some functionality are not implemented (e.g. automatic integration time adjustment)
  * add mutexes for multi-threaded operation
 
-## Known issues:
- * Currently (as of v0.2) driver buggers down if called from different processes due to it being userspace driver and no locks are present. Please ensure proper previous instance cleanup in your application
- * Multithreaded calls will reuse the same serial driver and might lead to bus collisions
+
+# Project references
+https://www.hypernets.eu/
+The HYPERNETS project is funded by the European Union’s Horizon 2020 research and innovation program under grant agreement No 775983.
+The HYPERNETS project is carried out by a consortium consisting of: 
+ * Royal Belgian Institute of Natural Sciences (coordinator) (RBINS, Belgium)
+ * University of Tartu Tartu Observatory (TO, Estonia)
+ * Sorbonne University (SU, France)
+ * National Research Council (CNR, Italy)
+ * National Physical Laboratory(NPL, United Kingdom)
+ * German Research Centre for Geosciences(GFZ, Germany)
+ * National Scientific and Technical Research Council(CONICET, Argentina)
