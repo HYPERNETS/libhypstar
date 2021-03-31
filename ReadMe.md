@@ -39,7 +39,9 @@ Python unit tests can be run using unittest library:
 
 # Project references
 https://www.hypernets.eu/
+
 The HYPERNETS project is funded by the European Union’s Horizon 2020 research and innovation program under grant agreement No 775983.
+
 The HYPERNETS project is carried out by a consortium consisting of: 
  * Royal Belgian Institute of Natural Sciences (coordinator) (RBINS, Belgium)
  * University of Tartu Tartu Observatory (TO, Estonia)
