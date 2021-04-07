@@ -15,11 +15,10 @@
 #define LOG_ERROR(format, ...) outputLog(ERROR, "ERROR", stderr, format, ##__VA_ARGS__)
 #define LOG_TRACE(format, ...) outputLog(TRACE, "TRACE", stdout, format, ##__VA_ARGS__)
 
-Hypstar::Hypstar(std::string portname)
+Hypstar::Hypstar(linuxserial *serial)
 {
+	hnport = serial;
 	setLoglevel(INFO);
-
-	hnport = getSerialPort(portname, DEFAULT_BAUD_RATE);
 
 	CalculateCrcTable_CRC32();
 
@@ -106,6 +105,7 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 	}
 	catch (eHypstar&){}
 	catch (eSerialReadTimeout&){}
+	delete s;
 	LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 	return false;
 }
@@ -1222,7 +1222,13 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 				continue;
 			}
 			catch (ePacketLengthMismatch &e) {
-				LOG_DEBUG("Got %d bytes instead of %d << %s\n", e.packetLengthReceived, e.lengthInPacket, e.pBufString);
+				char buf[e.packetLengthReceived *3];
+//				memcpy(buf, e.pBufString, e.packetLengthReceived*3);
+				for (int i = 0; i < e.packetLengthReceived*3; i++)
+				{
+					sprintf(&buf[i], "%c ", e.pBufString[i]);
+				}
+				LOG_DEBUG("Got %d bytes instead of %d << %s\n", e.packetLengthReceived, e.lengthInPacket, buf);
 				continue;
 			}
 			catch (ePacketReceivedTooShort &e) {
@@ -1491,6 +1497,12 @@ hypstar_t* hypstar_init(const char *port)
 	try
 	{
 		obj = Hypstar::getInstance(port);
+		if (!obj)
+		{
+			delete static_cast<Hypstar *> (obj);
+			return NULL;
+		}
+
 	}
 	catch (eHypstar& e)
 	{

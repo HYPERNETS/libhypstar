@@ -45,28 +45,31 @@ class Hypstar
 		static Hypstar* getInstance(std::string portname)
 		{
 			Hypstar* h;
+
 			// look through instance_holder for instance with the same portname
 			for (s_hypstar_instance i : Hypstar::instance_holder)
 			{
 				// if found, return pointer to that
 				if (portname.compare(i.port) == 0)
 				{
-//					i.instance->printLog(INFO, "INFO", stdout, "Returning existing driver instance %p\n", i.instance);
 					LOG(DEBUG, stdout, "Returning existing driver instance %p\n", i.instance);
 					return i.instance;
 				}
 			}
+
+			linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
 			// otherwise instantiate and append to instance_holder
 			try
 			{
-				h = new Hypstar(portname);
+				h = new Hypstar(s);
 			}
 			catch (eHypstar &e)
 			{
 				LOG(ERROR, stderr, "Could not establish communications with instrument\n");
+				delete s;
 				return NULL;
 			}
-//			h->printLog(INFO, "INFO", stdout, "Created driver instance %p\n", static_cast<void*>(h));
+
 			LOG(DEBUG, stdout, "Created driver instance %p\n", static_cast<void*>(h));
 			s_hypstar_instance new_hs = {
 					.port = portname,
@@ -336,7 +339,7 @@ class Hypstar
 
 		static std::vector<s_hypstar_instance> instance_holder;
 	private:
-		Hypstar(std::string portname);
+		Hypstar(linuxserial *serial);
 
 		bool sendCmd(unsigned char cmd, unsigned char * pParameters, unsigned short paramLength);
 		bool sendCmd(unsigned char cmd);
