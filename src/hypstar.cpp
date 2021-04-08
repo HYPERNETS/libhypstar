@@ -71,6 +71,7 @@ Hypstar::~Hypstar()
 			Hypstar::instance_holder.erase(Hypstar::instance_holder.begin()+i);
 		}
 	}
+	delete hnport;
 }
 
 bool Hypstar::reboot(void)
@@ -99,7 +100,8 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 		int len = readPacket(s, buf, timeout_s);
 
 		if ((len == expected_size) && (checkPacketCRC(buf, len))) {
-		LOG(INFO, stdout, "Got packet with length %d, expected length: %d, CRC matches, probably instrument\n", len, expected_size);
+			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, CRC matches, probably instrument\n", len, expected_size);
+			delete s;
 			return true;
 		}
 	}
@@ -1540,7 +1542,7 @@ void hypstar_close(hypstar_t *hs)
 		{
 			object_holder_instances.erase(object_holder_instances.begin()+i);
 			delete static_cast<Hypstar *> (hs->hs_instance);
-			free(hs);
+			delete hs;
 		}
 	}
 }
@@ -1790,7 +1792,14 @@ bool hypstar_save_calibration_coefficients(hypstar_t *hs)
 
 bool hypstar_wait_for_instrument(const char *port, float timeout_s)
 {
-	return Hypstar::waitForInstrumentToBoot(port, timeout_s);
+	try
+	{
+		return Hypstar::waitForInstrumentToBoot(port, timeout_s);
+	}
+	catch (eHypstar&)
+	{
+		return NULL;
+	}
 }
 // @TODO: acceleration to Gs and gravity vector offset
 // @TODO: automatic IT callbacks on adjust
