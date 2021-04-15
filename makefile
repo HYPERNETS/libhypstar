@@ -21,7 +21,7 @@ INCLUDES = -Iinc \
 	-Iinc/serial \
 	-Iinc/utils
 
-CFLAGS := -std=gnu++17 -rdynamic -fPIC -O0 -g -Wall -Werror
+CFLAGS := -std=gnu++11 -rdynamic -fPIC -O0 -g -Wall -Werror
 
 lib: $(BUILD_DIR)/lib$(NAME).so
 
@@ -56,6 +56,7 @@ $(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
 clean:
 	$(RM) -r $(BUILD_DIR)
 install: lib
+	$(RM) /usr/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so
 	install -m 0644 $(BUILD_DIR)/lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/
 	ln -s lib$(NAME).so.$(VERSION) /usr/local/lib/lib$(NAME).so
