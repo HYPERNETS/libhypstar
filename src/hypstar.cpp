@@ -15,7 +15,8 @@
 #define LOG_ERROR(format, ...) outputLog(ERROR, "ERROR", stderr, format, ##__VA_ARGS__)
 #define LOG_TRACE(format, ...) outputLog(TRACE, "TRACE", stdout, format, ##__VA_ARGS__)
 
-Hypstar::Hypstar(linuxserial *serial)
+
+Hypstar::Hypstar(LibHypstar::linuxserial *serial)
 {
 	hnport = serial;
 	setLoglevel(INFO);
@@ -24,6 +25,8 @@ Hypstar::Hypstar(linuxserial *serial)
 
 	try {
 		getHardWareInfo();
+		getFirmwareInfo();
+		getCalibrationCoefficientsAll();
 	}
 	catch (eBadInstrumentState&) {
 		// we are in firmware upgrade mode, regular commands will fail now
@@ -92,7 +95,7 @@ bool Hypstar::reboot(void)
 
 bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel)
 {
-	linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
+	LibHypstar::linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
 	unsigned char buf[30];
 	CalculateCrcTable_CRC32();
 	try {
@@ -106,7 +109,7 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 		}
 	}
 	catch (eHypstar&){}
-	catch (eSerialReadTimeout&){}
+	catch (LibHypstar::eSerialReadTimeout&){}
 	delete s;
 	LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 	return false;
@@ -823,7 +826,7 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 				hnport->serialRead();
 			}
 		}
-		catch (eSerialReadTimeout &e){}
+		catch (LibHypstar::eSerialReadTimeout &e){}
 		try
 		{
 			getHardWareInfo();
@@ -842,15 +845,15 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 	return 0;
 }
 
-linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
+LibHypstar::linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
 {
-	linuxserial *s;
+	LibHypstar::linuxserial *s;
 	try
 	{
 		LOG(INFO, stdout, "Creating serial port (baud=%d, portname=%s)\n", DEFAULT_BAUD_RATE, portname.c_str());
-		s = new linuxserial(DEFAULT_BAUD_RATE, portname.c_str());
+		s = new LibHypstar::linuxserial(DEFAULT_BAUD_RATE, portname.c_str());
 	}
-	catch (eSerialOpenFailed&)
+	catch (LibHypstar::eSerialOpenFailed&)
 	{
 		LOG(ERROR, stderr, "%s port open failed\n\n", portname.c_str());
 		throw eHypstar();
@@ -864,7 +867,7 @@ linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
 		while (true)
 			s->serialRead();
 	}
-	catch (eSerialReadTimeout &e){}
+	catch (LibHypstar::eSerialReadTimeout &e){}
 	return s;
 }
 
@@ -909,7 +912,7 @@ bool Hypstar::sendCmd(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 	{
 		hnport->serialWrite(crcbuf, txlen);
 	}
-	catch(eSerialError &e)
+	catch(LibHypstar::eSerialError &e)
 	{
 		LOG_ERROR("%s: could not send command to spectrometer\n", __PRETTY_FUNCTION__);
 		return false;
@@ -943,7 +946,7 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 	return packetLengthReceived;
 }
 
-int Hypstar::readPacket(linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
+int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
 {
 	int count = 0, length = 0;
 	try
@@ -967,8 +970,8 @@ int Hypstar::readPacket(linuxserial *pSerial, unsigned char * pBuf, float timeou
 			count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
 		}
 	}
-	catch (eSerialReadTimeout &e){}
-	catch (eSerialSelectInterrupted &e)
+	catch (LibHypstar::eSerialReadTimeout &e){}
+	catch (LibHypstar::eSerialSelectInterrupted &e)
 	{
 		throw eHypstar();
 	}

@@ -14,14 +14,13 @@
 #define LIBHYPSTAR_H
 
 #include <stdio.h>
-#include "linuxserial.h"
+#include <libhypstar_linuxserial.h>
 #include <string>
-#include "hypstar_typedefs.hpp"
+#include <hypstar_typedefs.hpp>
 #include <vector>
 #include <stdarg.h>
 #include <iostream>
 
-using namespace LibHypstar;
 #define LOG(level, stream, format, ...) printLogStatic(level, #level, stream, format, ##__VA_ARGS__)
 /**
  * Main driver class. Handles communications with the instrument
@@ -57,7 +56,7 @@ class Hypstar
 				}
 			}
 
-			linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
+			LibHypstar::linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
 			// otherwise instantiate and append to instance_holder
 			try
 			{
@@ -337,9 +336,9 @@ class Hypstar
 		/* Advanced calibration coefficients, necessary for uncertainty evaluation */
 		struct s_extended_calibration_coefficients extended_calibration_coefficients;
 
-		static std::vector<s_hypstar_instance> instance_holder;
+		inline static std::vector<s_hypstar_instance> instance_holder;
 	private:
-		Hypstar(linuxserial *serial);
+		Hypstar(LibHypstar::linuxserial *serial);
 
 		bool sendCmd(unsigned char cmd, unsigned char * pParameters, unsigned short paramLength);
 		bool sendCmd(unsigned char cmd);
@@ -356,21 +355,19 @@ class Hypstar
 		void logBinPacket(const char * direction, unsigned char * pPacket, int packetLength);
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
-		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
+		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
 		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
 		static void printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
-		static linuxserial* getSerialPort(std::string portname, int baudrate);
+		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 
-		linuxserial *hnport; //serial port object
+		LibHypstar::linuxserial *hnport; //serial port object
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 		s_outgoing_packet lastOutgoingPacket;
 		e_loglevel _loglevel;
 		unsigned short lastCaptureLongestIntegrationTime_ms;
 };
-
-std::vector<Hypstar::s_hypstar_instance> Hypstar::instance_holder;
 
 #define REQUEST(x) exchange(x, NULL, 0, #x)
 #define EXCHANGE(x, y, z) exchange(x, y, z, #x)
