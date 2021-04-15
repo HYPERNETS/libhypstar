@@ -15,6 +15,7 @@
 #define LOG_ERROR(format, ...) outputLog(ERROR, "ERROR", stderr, format, ##__VA_ARGS__)
 #define LOG_TRACE(format, ...) outputLog(TRACE, "TRACE", stdout, format, ##__VA_ARGS__)
 
+std::vector<Hypstar::s_hypstar_instance> Hypstar::instance_holder;
 
 Hypstar::Hypstar(LibHypstar::linuxserial *serial)
 {

@@ -336,7 +336,7 @@ class Hypstar
 		/* Advanced calibration coefficients, necessary for uncertainty evaluation */
 		struct s_extended_calibration_coefficients extended_calibration_coefficients;
 
-		inline static std::vector<s_hypstar_instance> instance_holder;
+		static std::vector<s_hypstar_instance> instance_holder;
 	private:
 		Hypstar(LibHypstar::linuxserial *serial);
 

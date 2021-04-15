@@ -21,7 +21,7 @@ INCLUDES = -Iinc \
 	-Iinc/serial \
 	-Iinc/utils
 
-CFLAGS := -std=gnu++17 -rdynamic -fPIC -O0 -g -Wall -Werror
+CFLAGS := -std=gnu++11 -rdynamic -fPIC -O0 -g -Wall -Werror
 
 lib: $(BUILD_DIR)/lib$(NAME).so
 
