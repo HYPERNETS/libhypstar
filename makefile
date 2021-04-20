@@ -56,6 +56,7 @@ $(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
 clean:
 	$(RM) -r $(BUILD_DIR)
 install: lib
+	$(RM) /usr/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so
 	install -m 0644 $(BUILD_DIR)/lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/
 	ln -s lib$(NAME).so.$(VERSION) /usr/local/lib/lib$(NAME).so
