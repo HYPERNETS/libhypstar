@@ -30,6 +30,7 @@ Hypstar::Hypstar(linuxserial *serial)
 //		throw eBadInstrumentState();
 		return;
 	}
+//	catch (eSerialReadTimeout &)
 	catch (eHypstar&)
 	{
 		LOG_INFO("Did not get response from instrument, will try different baud rates\n");
@@ -116,10 +117,15 @@ bool Hypstar::getHardWareInfo(void)
 {
 	exchange(BOOTED, NULL, 0, "BOOTED", 0.1);
 	memcpy(&hw_info, (rxbuf + 3), sizeof(struct s_booted));
+	if (hw_info.firmware_version_minor < 15) {
+		hw_info.vnir_pixel_count = 0;
+		hw_info.swir_pixel_count = 0;
+	}
 
-	LOG_DEBUG("memory slots %hu, vnir=%d, swir=%d, mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d\n",
-			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.swir_module_available, hw_info.optical_multiplexer_available, hw_info.camera_available,
-			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available);
+	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d\n",
+			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.vnir_pixel_count, hw_info.swir_module_available, hw_info.swir_pixel_count, hw_info.optical_multiplexer_available, hw_info.camera_available,
+			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available,
+			hw_info.vnir_pixel_count, hw_info.swir_pixel_count);
 
 	return true;
 }
@@ -256,8 +262,91 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 		return false;
 	}
 
-	memcpy(pTarget, (rxbuf + 3), sizeof(struct s_environment_log_entry));
+	// energy meter info has changed new hardware version
+	if (hw_info.psu_hardware_version > 3)
+	{
+		uint8_t offset = 38;
+		memcpy(pTarget, (rxbuf + 3), offset);
+		offset = offset +3;
+		pTarget->energy_vnir_module_5v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_mcu_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_common_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_camera_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_vnir_module_5v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_mcu_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_common_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_camera_3v3 = *((float*)&rxbuf[offset]);
+		offset = offset +4;
+		pTarget->current_vnir_module_5v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_mcu_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_common_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_camera_3v3 = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_swir_module_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_vm = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_input_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->energy_multiplexer_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_swir_module_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_vm = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_input_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->voltage_multiplexer_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_swir_module_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_vm = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_input_12v = *(float*)&rxbuf[offset];
+		offset = offset +4;
+		pTarget->current_multiplexer_12v = *(float*)&rxbuf[offset];
+
+	}
+	else
+	{
+		memcpy(pTarget, (rxbuf + 3), sizeof(struct s_environment_log_entry));
+	}
 	return true;
+}
+
+void Hypstar::convertRawAccelerometerDataToGs(int16_t *readings_ADU, float *out)
+{
+	// full scale is +-2g in signed short
+	for (int i = 0; i < 3; i++) {
+		out[i] = readings_ADU[i] * (2.0f / 32768.0f);
+	}
+}
+
+void Hypstar::convertRawAccelerometerDataToGsFromEnvLog(struct s_environment_log_entry *log, float *out)
+{
+	convertRawAccelerometerDataToGs(log->accelerometer_readings_XYZ, out);
+}
+
+void Hypstar::convertAccelerationFromGsToMs(float *gs, float *ms) {
+	for (int i = 0; i < 3; i++) {
+		ms[i] = gs[i] * (9.8);
+	}
+}
+
+void Hypstar::convertRawAccelerometerDataToMsFromEnvLog(struct s_environment_log_entry *log, float *out)
+{
+	convertRawAccelerometerDataToGsFromEnvLog(log, out);
+	convertAccelerationFromGsToMs(out, out);
 }
 
 bool Hypstar::setBaudRate(e_baudrate baudRate)
@@ -521,11 +610,35 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 
 				while(true)
 				{
-					readData(timeout_s);
+					try
+					{
+						readData(timeout_s);
+					}
+					catch (ePacketLengthMismatch &e)
+					{
+						LOG_ERROR("Bad packet length!\n");
+					}
+					catch (eSerialReadTimeout &e){
+						LOG_ERROR("Serial timeout exception?\n");
+					}
+					catch (eSerialSelectInterrupted &e) {
+						LOG_ERROR("Serial select interrupted\n");
+					}
+					catch (eHypstar &e)
+					{
+						LOG_ERROR("Something else?\n");
+					}
 
 					if ((rxbuf[0] == DONE) && (rxbuf[3] == CAPTURE_SPEC))
+					{
 						break;
+					}
+					else if (rxbuf[0] != AUTOINT_STATUS) {
+						LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+						sendCmd(RESEND);
+						continue;
 
+					}
 					if (rxbuf[0] == AUTOINT_STATUS)
 					{
 
@@ -829,6 +942,7 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 			getHardWareInfo();
 			return br;
 		}
+		catch (eSerialReadTimeout &){}
 		catch (eBadTxCRC&)
 		{
 			// if we managed to unpack error, this is it
@@ -946,8 +1060,8 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 int Hypstar::readPacket(linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
 {
 	int count = 0, length = 0;
-	try
-	{
+//	try
+//	{
 		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE
 		// since we don't have any commands starting with 0xFy, we check for that and skip it
 		count += pSerial->serialRead(pBuf, 1, timeout_s);
@@ -966,12 +1080,12 @@ int Hypstar::readPacket(linuxserial *pSerial, unsigned char * pBuf, float timeou
 		{
 			count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
 		}
-	}
-	catch (eSerialReadTimeout &e){}
-	catch (eSerialSelectInterrupted &e)
-	{
-		throw eHypstar();
-	}
+//	}
+//	catch (eSerialReadTimeout &e){}
+//	catch (eSerialSelectInterrupted &e)
+//	{
+//		throw eHypstar();
+//	}
 
 	return checkPacketLength(pBuf, length, count);
 }
@@ -1099,7 +1213,7 @@ int Hypstar::readData(float timeout_s)
 
 		// Response packet: response code(1), packet_length(2), outgoing_command_packet(x), general_error_code, (n x {error_code(1), parm_no(1)}, crc(1)
 		unsigned short n_errors = (count - PACKET_DECORATORS_TOTAL_SIZE - lastOutgoingPacket.length -1) / 2;
-		printf("Len: %d, last packet: %d, Error count: %d\n", length, lastOutgoingPacket.length, n_errors);
+		LOG_DEBUG("Len: %d, last packet: %d, Error count: %d\n", length, lastOutgoingPacket.length, n_errors);
 		unsigned short errcode2, parm2;
 
 		switch(errcode)
@@ -1241,6 +1355,11 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			{
 				LOG_DEBUG("Got garbage from instrument, requesting repeat\n");
 				resend = true;
+				continue;
+			}
+			catch (eSerialReadTimeout &e)
+			{
+				LOG_DEBUG("Timed out, rerequesting\n");
 				continue;
 			}
 		}
@@ -1392,7 +1511,15 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 	// DONE
 	for (retryCount = 0; retryCount < CMD_RETRY; retryCount++)
 	{
-		receivedByteCount = readData(timeout_s);
+		try
+		{
+			receivedByteCount = readData(timeout_s);
+		}
+		catch (eSerialReadTimeout &)
+		{
+			LOG_ERROR("Timeout while waiting for done!\n");
+			return false;
+		}
 
 		if (rxbuf[0] == DONE)
 		{

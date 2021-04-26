@@ -1,7 +1,7 @@
-MAJOR := 0
-MINOR := 2
+DVER_MAJOR := 0
+DVER_MINOR := 2
+DVER_REVISION := 2
 NAME := hypstar
-VERSION := $(MAJOR).$(MINOR)
 
 CC := g++
 BUILD_DIR := build
@@ -21,6 +21,7 @@ INCLUDES = -Iinc \
 	-Iinc/utils
 
 CFLAGS := -fPIC -O0 -g -Wall -Werror $(INCLUDES) -M
+EXTRA_CFLAGS := -DDVER_MAJOR=$(DVER_MAJOR) -DDVER_MINOR=$(DVER_MINOR) -DDVER_REVISION=$(DVER_REVISION)
 
 lib: $(BUILD_DIR)/lib$(NAME).so
 
@@ -28,7 +29,7 @@ test_%: $(BUILD_DIR)/lib$(NAME).so
 	@echo --------------------------
 	@echo Building $@
 	@echo --------------------------
-	$(CC) -rdynamic $(INCLUDES) -L./$(BUILD_DIR) -Wl,-rpath=./$(BUILD_DIR) -o $(BUILD_DIR)/$@ test/$@.c -lhypstar -lrt 
+	$(CC) $(EXTRA_CFLAGS) -rdynamic $(INCLUDES) -L./$(BUILD_DIR) -Wl,-rpath=./$(BUILD_DIR) -o $(BUILD_DIR)/$@ test/$@.c -lhypstar -lrt
 
 	@echo --------------------------
 	@echo Executing $@
@@ -45,11 +46,11 @@ $(BUILD_DIR)/lib$(NAME).so.$(VERSION): $(OBJECTS)
 	@echo ----- INFO: Building lib
 	@echo C_SOURCES = $(C_SOURCES)
 	@echo OBJECTS = $(OBJECTS)
-	$(CC) -rdynamic -fPIC -lrt -shared -Wl,--export-dynamic -o $@ $(OBJECTS)
+	$(CC) $(EXTRA_CFLAGS) -rdynamic -fPIC -lrt -shared -Wl,--export-dynamic -o $@ $(OBJECTS)
 
 $(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
 	@echo ----- INFO: Building file $<
-	$(CC) -rdynamic -fPIC -O0 -g -Wall -Werror $(INCLUDES) -c $< -o $@
+	$(CC) $(EXTRA_CFLAGS) -rdynamic -fPIC -O0 -g -Wall -Werror $(INCLUDES) -c $< -o $@
 
 .PHONY: clean
 clean:

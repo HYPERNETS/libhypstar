@@ -44,6 +44,7 @@ class Hypstar
 		 */
 		static Hypstar* getInstance(std::string portname)
 		{
+			LOG(DEBUG, stdout, "LibHypstar driver v%d.%d.%d\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION);
 			Hypstar* h;
 
 			// look through instance_holder for instance with the same portname
@@ -140,6 +141,34 @@ class Hypstar
 		 * \return status of execution: True if successful, false if not.
 		 */
 		bool getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, unsigned char index);
+
+		/**
+		 * \brief	 Recalculates raw accelerometer data into acceleration in Gs
+		 * \param readings_ADU pointer to array of 3 signed shorts to be converted
+		 * \param out array of 3 floats where results are to be stored
+		 */
+		void convertRawAccelerometerDataToGs(int16_t *readings_ADU, float *out);
+
+		/**
+		 * \brief	 Recalculates raw accelerometer data into acceleration in Gs from environmental log entry
+		 * \param log pointer to environmental log entry from which to extract acceleration data
+		 * \param out array of 3 floats where results are to be stored
+		 */
+		void convertRawAccelerometerDataToGsFromEnvLog(struct s_environment_log_entry *log, float *out);
+
+		/**
+		 * \brief	 Convert accelerometer readings from gravities (g's) to metric (m*s^2)
+		 * \param gs pointer to array of 3 floats with readings in g`s
+		 * \param ms array of 3 floats where results are to be stored
+		 */
+		void convertAccelerationFromGsToMs(float *gs, float *ms);
+
+		/**
+		 * \brief	 Recalculates raw accelerometer data into acceleration in m*s^2 from environmental log entry
+		 * \param log pointer to environmental log entry from which to extract acceleration data
+		 * \param out array of 3 floats where results are to be stored
+		 */
+		void convertRawAccelerometerDataToMsFromEnvLog(struct s_environment_log_entry *log, float *out);
 
 		/**
 		 * \brief	 Capture camera image and store it on the instrument for further retrieval.
@@ -338,6 +367,9 @@ class Hypstar
 		struct s_extended_calibration_coefficients extended_calibration_coefficients;
 
 		static std::vector<s_hypstar_instance> instance_holder;
+		// public for resting
+		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
+		static linuxserial* getSerialPort(std::string portname, int baudrate);
 	private:
 		Hypstar(linuxserial *serial);
 
@@ -356,12 +388,12 @@ class Hypstar
 		void logBinPacket(const char * direction, unsigned char * pPacket, int packetLength);
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
-		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
+//		static int readPacket(linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
 		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
 		static void printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
-		static linuxserial* getSerialPort(std::string portname, int baudrate);
+//		static linuxserial* getSerialPort(std::string portname, int baudrate);
 
 		linuxserial *hnport; //serial port object
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
