@@ -44,7 +44,7 @@ class Hypstar
 		 */
 		static Hypstar* getInstance(std::string portname)
 		{
-			LOG(DEBUG, stdout, "LibHypstar driver v%d.%d.%d\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION);
+			LOG(DEBUG, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
 			Hypstar* h;
 
 			// look through instance_holder for instance with the same portname
@@ -142,6 +142,13 @@ class Hypstar
 		 */
 		bool getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, unsigned char index);
 
+		/**
+		 * \brief	 Recalculates raw accelerometer data into acceleration in Gs
+		 * \param reading single signed short raw value
+		 * \return float value in Gs
+		 */
+
+		float convertRawAccelerometerReadingToGs(int16_t reading);
 		/**
 		 * \brief	 Recalculates raw accelerometer data into acceleration in Gs
 		 * \param readings_ADU pointer to array of 3 signed shorts to be converted

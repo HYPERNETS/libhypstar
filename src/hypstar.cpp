@@ -100,7 +100,7 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 		int expected_size = PACKET_DECORATORS_TOTAL_SIZE + sizeof(struct s_booted);
 		int len = readPacket(s, buf, timeout_s);
 
-		if ((len == expected_size) && (checkPacketCRC(buf, len))) {
+		if (((len == expected_size) || (len == expected_size -4)) && (checkPacketCRC(buf, len))) {
 			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, CRC matches, probably instrument\n", len, expected_size);
 			delete s;
 			return true;
@@ -324,17 +324,24 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 	return true;
 }
 
-void Hypstar::convertRawAccelerometerDataToGs(int16_t *readings_ADU, float *out)
+float Hypstar::convertRawAccelerometerReadingToGs(int16_t reading)
 {
 	// full scale is +-2g in signed short
+	return reading * (2.0f / 32768.0f);
+}
+
+void Hypstar::convertRawAccelerometerDataToGs(int16_t *readings_ADU, float *out)
+{
 	for (int i = 0; i < 3; i++) {
-		out[i] = readings_ADU[i] * (2.0f / 32768.0f);
+		out[i] = convertRawAccelerometerReadingToGs(readings_ADU[i]);
 	}
 }
 
 void Hypstar::convertRawAccelerometerDataToGsFromEnvLog(struct s_environment_log_entry *log, float *out)
 {
-	convertRawAccelerometerDataToGs(log->accelerometer_readings_XYZ, out);
+	for (int i = 0; i < 3; i++) {
+		out[i] = convertRawAccelerometerReadingToGs(log->accelerometer_readings_XYZ[i]);
+	}
 }
 
 void Hypstar::convertAccelerationFromGsToMs(float *gs, float *ms) {
