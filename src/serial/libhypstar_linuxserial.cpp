@@ -7,7 +7,7 @@
 #include <strings.h>
 #include <linux/serial.h>
 #include <sys/ioctl.h>
-#include "linuxserial.h"
+#include "libhypstar_linuxserial.h"
 #include "linuxserial_baudrate.h"
 
 #include <sys/io.h>

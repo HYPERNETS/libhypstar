@@ -1,5 +1,5 @@
-#ifndef __LINUXSERIAL_H
-#define __LINUXSERIAL_H
+#ifndef __LIBHYPSTAR_LINUXSERIAL_H
+#define __LIBHYPSTAR_LINUXSERIAL_H
 
 #include <string>    //string container, bzero()
 #include <termios.h>
@@ -50,4 +50,4 @@ namespace LibHypstar {
 	};
 } // namespace LibHypstar
 
-#endif /* __LINUXSERIAL_H */
+#endif /* __LIBHYPSTAR_LINUXSERIAL_H */

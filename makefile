@@ -7,6 +7,7 @@ CC := g++
 BUILD_DIR := build
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+INSTALL_DIR := /usr/local
 
 C_SOURCES := $(wildcard src/*.cpp)
 C_SOURCES += $(wildcard src/serial/*.cpp)
@@ -20,7 +21,7 @@ INCLUDES = -Iinc \
 	-Iinc/serial \
 	-Iinc/utils
 
-CFLAGS := -fPIC -O0 -g -Wall -Werror $(INCLUDES) -M
+CFLAGS := -std=gnu++11 -rdynamic -fPIC -O0 -g -Wall -Werror
 
 COMMIT_HASH=$(shell git show-ref refs/heads/main | cut -c 1-8)
 EXTRA_CFLAGS := -DDVER_MAJOR=$(DVER_MAJOR) -DDVER_MINOR=$(DVER_MINOR) -DDVER_REVISION=$(DVER_REVISION) -DDVER_HASH=\"$(COMMIT_HASH)\"
@@ -52,12 +53,18 @@ $(BUILD_DIR)/lib$(NAME).so.$(VERSION): $(OBJECTS)
 
 $(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
 	@echo ----- INFO: Building file $<
-	$(CC) $(EXTRA_CFLAGS) -rdynamic -fPIC -O0 -g -Wall -Werror $(INCLUDES) -c $< -o $@
+	$(CC) $(EXTRA_CFLAGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 .PHONY: clean
 clean:
 	$(RM) -r $(BUILD_DIR)
 install: lib
-	$(RM) /usr/lib/lib$(NAME).so
-	cp $(BUILD_DIR)/lib$(NAME).so.$(VERSION) /usr/lib/
-	ln -s lib$(NAME).so.$(VERSION) /usr/lib/lib$(NAME).so
+	$(RM) /usr/lib/lib$(NAME).so*
+	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so
+	install -m 0644 $(BUILD_DIR)/lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/
+	ln -s lib$(NAME).so.$(VERSION) /usr/local/lib/lib$(NAME).so
+	install -m 0644 inc/hypstar.h $(INSTALL_DIR)/include
+	install -m 0644 inc/hypstar_typedefs.hpp $(INSTALL_DIR)/include
+	install -m 0644 inc/serial/libhypstar_linuxserial.h $(INSTALL_DIR)/include
+	ldconfig
+	
