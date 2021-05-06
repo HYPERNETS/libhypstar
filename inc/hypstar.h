@@ -221,7 +221,7 @@ class Hypstar
 		 * \return number of captured spectra
 		 */
 		unsigned short captureSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
-				unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s);
+				unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, bool reuse_last_AIT_value = false);
 
 		/**
 		 * \brief	 Get instrument internal memory slots of last capture series for data acquisition
@@ -275,7 +275,7 @@ class Hypstar
 		 * \return number of captures performed
 		 */
 		unsigned short acquireSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
-				unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, s_spectrum_dataset *pSpectraTarget);
+				unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, s_spectrum_dataset *pSpectraTarget, bool reuse_last_AIT_value = false);
 
 		/**
 		 * \brief	Sets verbosity of this driver.
@@ -437,11 +437,11 @@ extern "C"
 	bool hypstar_get_calibration_coefficients_extended(hypstar_t *hs, s_extended_calibration_coefficients *ext_cal_coef_target);
 	bool hypstar_get_calibration_coefficients_all(hypstar_t *hs, s_calibration_coefficients_unpacked *coef_target, s_extended_calibration_coefficients *ext_cal_coef_target);
 	unsigned short hypstar_capture_spectra(hypstar_t *hs, enum e_radiometer spec, enum e_entrance mux,
-	unsigned short vnir_inttime_ms, unsigned short swir_inttime_ms, unsigned short scan_count, unsigned short series_time_s);
+			unsigned short vnir_inttime_ms, unsigned short swir_inttime_ms, unsigned short scan_count, unsigned short series_time_s, bool reuse_last_AIT_value);
 	unsigned short hypstar_get_last_capture_memory_slots(hypstar_t *hs, unsigned short *target, unsigned short number_of_captures);
 	unsigned short hypstar_download_spectra(hypstar_t *hs, unsigned short *memory_slots, unsigned short number_of_captures, s_spectrum_dataset *target);
 	unsigned short hypstar_acquire_spectra(hypstar_t *hs, enum e_radiometer spec, enum e_entrance mux,
-	unsigned short vnir_inttime_ms,	unsigned short swir_inttime_ms,	unsigned short scan_count, unsigned short series_time_s, s_spectrum_dataset *target);
+			unsigned short vnir_inttime_ms,	unsigned short swir_inttime_ms,	unsigned short scan_count, unsigned short series_time_s, s_spectrum_dataset *target, bool reuse_last_AIT_value);
 	unsigned short hypstar_capture_JPEG_image(hypstar_t *hs, bool flip, bool mirror, bool auto_focus);
 	unsigned short hypstar_download_JPEG_image(hypstar_t *hs, s_img_data_holder *target);
 	bool hypstar_set_TEC_target_temperature(hypstar_t *hs, float target_temp_deg_C);

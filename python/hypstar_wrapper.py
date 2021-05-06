@@ -110,8 +110,11 @@ class Hypstar:
 	# 1s or 100ms limit with 100ms integration time will return only 9 items, since there's ~2ms overhead for capture and download
 	# when switching from one entrance type to another with time limit set, less than theoretical maximum number of spectra will be captured
 	# this is due to optical multiplexer physical movement taking some time (~300 ms)
-	def capture_spectra(self, spectrum_type, entrance, vnir_int_time_ms, swir_int_time_ms, scan_count, series_time_max_s):
-		return self.lib.hypstar_capture_spectra(self.handle, spectrum_type, entrance, vnir_int_time_ms, swir_int_time_ms, scan_count, series_time_max_s)
+
+	# if reuse_last_AIT_value == True instrument will start automatic integration time adjustment from last capture value for particular Entrance+Radiometer combination
+	# in stead of using default value of 64ms. This was requested by the land users to speed up AIT estimation over homogenous targets
+	def capture_spectra(self, spectrum_type, entrance, vnir_int_time_ms, swir_int_time_ms, scan_count, series_time_max_s, reuse_last_AIT_value = False):
+		return self.lib.hypstar_capture_spectra(self.handle, spectrum_type, entrance, vnir_int_time_ms, swir_int_time_ms, scan_count, series_time_max_s, reuse_last_AIT_value)
 
 	def get_last_capture_spectra_memory_slots(self, count):
 		if count == 0:
@@ -169,7 +172,7 @@ class Hypstar:
 		self.lib.hypstar_get_calibration_coefficients_basic.argtypes = [c_void_p, c_void_p]
 		self.lib.hypstar_get_calibration_coefficients_extended.argtypes = [c_void_p, c_void_p]
 		self.lib.hypstar_get_calibration_coefficients_all.argtypes = [c_void_p, c_void_p, c_void_p]
-		self.lib.hypstar_capture_spectra.argtypes = [c_void_p, RadiometerType, RadiometerEntranceType, c_uint16, c_uint16, c_uint16, c_uint16]
+		self.lib.hypstar_capture_spectra.argtypes = [c_void_p, RadiometerType, RadiometerEntranceType, c_uint16, c_uint16, c_uint16, c_uint16, c_bool]
 		self.lib.hypstar_get_last_capture_memory_slots.argtypes = [c_void_p, c_void_p, c_uint16]
 		self.lib.hypstar_download_spectra.argtypes = [c_void_p, c_void_p, c_uint16, c_void_p]
 		self.lib.hypstar_capture_JPEG_image.argtypes = [c_void_p, c_bool, c_bool]

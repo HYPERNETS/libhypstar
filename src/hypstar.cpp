@@ -27,7 +27,6 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial)
 	try {
 		getHardWareInfo();
 		getFirmwareInfo();
-		getCalibrationCoefficientsAll();
 	}
 	catch (eBadInstrumentState&) {
 		// we are in firmware upgrade mode, regular commands will fail now
@@ -523,7 +522,7 @@ int Hypstar::getImage(struct s_img_data_holder *pImageDatasetTarget)
 }
 
 unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
-		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s)
+		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, bool reuse_last_AIT_value)
 {
 	struct s_capture_spectra_request_packet capture_spec_packet;
 	unsigned short n_captures = 0;
@@ -543,6 +542,9 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 
 	if (entranceType == IRRADIANCE)
 		capture_spec_packet.capture_spectra_parameters.irradiance = 1;
+
+	if (reuse_last_AIT_value)
+		capture_spec_packet.capture_spectra_parameters.start_from_last_AIT = 1;
 
 	capture_spec_packet.vnir_integration_time_ms = vnirIntegrationTime_ms;
 	capture_spec_packet.swir_integration_time_ms = swirIntegrationTime_ms;
@@ -796,9 +798,9 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 }
 
 unsigned short Hypstar::acquireSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
-		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, s_spectrum_dataset *pSpectraTarget)
+		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, s_spectrum_dataset *pSpectraTarget, bool reuse_last_AIT_value)
 {
-	unsigned short cnt = captureSpectra(spectrumType, entranceType, vnirIntegrationTime_ms, swirIntegrationTime_ms, scanCount, seriesMaxDuration_s);
+	unsigned short cnt = captureSpectra(spectrumType, entranceType, vnirIntegrationTime_ms, swirIntegrationTime_ms, scanCount, seriesMaxDuration_s, reuse_last_AIT_value);
 	unsigned short slots[cnt];
 	getLastSpectraCaptureMemorySlots(slots, cnt);
 	getSpectraFromMemorySlots(slots, cnt, pSpectraTarget);
@@ -1793,14 +1795,14 @@ bool hypstar_get_calibration_coefficients_all(hypstar_t *hs, s_calibration_coeff
 }
 
 unsigned short hypstar_capture_spectra(hypstar_t *hs, enum e_radiometer spec, enum e_entrance mux,
-		unsigned short vnir_inttime_ms, unsigned short swir_inttime_ms, unsigned short scan_count, unsigned short series_time_s)
+		unsigned short vnir_inttime_ms, unsigned short swir_inttime_ms, unsigned short scan_count, unsigned short series_time_s, bool reuse_last_AIT_value)
 {
 	if (hs == NULL)
 	{
 		return false;
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
-	return instance->captureSpectra(spec, mux, vnir_inttime_ms, swir_inttime_ms, scan_count, series_time_s);
+	return instance->captureSpectra(spec, mux, vnir_inttime_ms, swir_inttime_ms, scan_count, series_time_s, reuse_last_AIT_value);
 }
 
 unsigned short hypstar_get_last_capture_memory_slots(hypstar_t *hs, unsigned short *target, unsigned short number_of_captures)
@@ -1825,14 +1827,14 @@ unsigned short hypstar_download_spectra(hypstar_t *hs, unsigned short *memory_sl
 }
 
 unsigned short hypstar_acquire_spectra(hypstar_t *hs, enum e_radiometer spec, enum e_entrance mux,
-		unsigned short vnir_inttime_ms,	unsigned short swir_inttime_ms,	unsigned short scan_count, unsigned short series_time_s, s_spectrum_dataset *target)
+		unsigned short vnir_inttime_ms,	unsigned short swir_inttime_ms,	unsigned short scan_count, unsigned short series_time_s, s_spectrum_dataset *target, bool reuse_last_AIT_value)
 {
 	if (hs == NULL)
 	{
 		return 0;
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
-	return instance->acquireSpectra(spec, mux, vnir_inttime_ms, swir_inttime_ms, scan_count, series_time_s, target);
+	return instance->acquireSpectra(spec, mux, vnir_inttime_ms, swir_inttime_ms, scan_count, series_time_s, target, reuse_last_AIT_value);
 }
 
 bool hypstar_set_baudrate(hypstar_t *hs, e_baudrate new_baudrate)
@@ -1947,6 +1949,7 @@ bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integra
 {
 	s_spectrum_optical_configuration spectrum_config = {
 			.na = 0,
+			.start_from_last_AIT = 0,
 			.irradiance = 0,
 			.radiance = 1,
 			.semolator_fake_saturation = 0,

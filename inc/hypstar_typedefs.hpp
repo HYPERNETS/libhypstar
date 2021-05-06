@@ -400,7 +400,8 @@ struct __attribute__((__packed__)) s_img_data_holder
 
 struct __attribute__((__packed__)) s_spectrum_optical_configuration
 {
-	int8_t na : 3; 						// LSB, should be 0
+	int8_t na : 2; 						// LSB, should be 0
+	bool start_from_last_AIT : 1;		// automatic integration time select bit. 0: start from default 64ms, 1: start from last estimated integration time for given optical configuration
 	// Having both of these as 0 performs DARK measurement. Having both set to 1 will result in error message
 	bool irradiance : 1;				// capture using radiance entrance
 	bool radiance : 1;					// capture using irradiance entrance
