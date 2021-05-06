@@ -26,7 +26,7 @@
 #define TEC_OFF -100.0
 
 // capture timeout multiplier
-#define CAPTURE_TIMEOUT_MULT 1.2
+#define CAPTURE_TIMEOUT_MULT 1.4
 // capture timeout addition (seconds) to each capture (mainly for SWIR overhead on 115kbps serial)
 #define CAPTURE_TIMEOUT_ADD_EACH 0.2
 // capture timeout addition (seconds; has to be long enough for changing MUX position)
@@ -215,6 +215,8 @@ struct __attribute__((__packed__)) s_booted
 	bool sd_card_available : 1;
 	bool power_monitor_1_available: 1;
 	bool power_monitor_2_available: 1;
+	uint16_t vnir_pixel_count;
+	uint16_t swir_pixel_count;
 };
 
 struct __attribute__((__packed__)) s_firwmare_info {
@@ -303,6 +305,9 @@ struct __attribute__((__packed__)) s_environment_log_entry
 	float current_multiplexer_12v;			// Amperes of instantaneous measurement on 12V optical multiplexer bus
 	float current_vnir_module_5v;			// Amperes of instantaneous measurement on 5V VNIR module power bus
 	float current_input_12v;				// Amperes of instantaneous measurement on 12V power input
+	float energy_vm;
+	float voltage_vm;
+	float current_vm;
 };
 
 // supported baud rates
