@@ -26,8 +26,6 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial)
 
 	try {
 		getHardWareInfo();
-		getFirmwareInfo();
-		getCalibrationCoefficientsAll();
 	}
 	catch (eBadInstrumentState&) {
 		// we are in firmware upgrade mode, regular commands will fail now
