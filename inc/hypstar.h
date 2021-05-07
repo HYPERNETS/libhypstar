@@ -41,44 +41,7 @@ class Hypstar
 		 * On initialization driver sets instrument timestamp to UTC time. Use setTime() to set to local time or whatever
 		 * \param portname name of the port (e.g. '/dev/ttyUSB0')
 		 */
-		static Hypstar* getInstance(std::string portname)
-		{
-			LOG(DEBUG, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
-			Hypstar* h;
-
-			// look through instance_holder for instance with the same portname
-			for (s_hypstar_instance i : Hypstar::instance_holder)
-			{
-				// if found, return pointer to that
-				if (portname.compare(i.port) == 0)
-				{
-					LOG(DEBUG, stdout, "Returning existing driver instance %p\n", i.instance);
-					return i.instance;
-				}
-			}
-
-			LibHypstar::linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
-			// otherwise instantiate and append to instance_holder
-			try
-			{
-				h = new Hypstar(s);
-			}
-			catch (eHypstar &e)
-			{
-				LOG(ERROR, stderr, "Could not establish communications with instrument\n");
-				delete s;
-				return NULL;
-			}
-
-			LOG(DEBUG, stdout, "Created driver instance %p\n", static_cast<void*>(h));
-			s_hypstar_instance new_hs = {
-					.port = portname,
-					.instance = h
-			};
-			Hypstar::instance_holder.push_back(new_hs);
-			return h;
-			// destructor has to find and remove own entry from the vector
-		}
+		static Hypstar* getInstance(std::string portname);
 
 		/**
 		 * Destructor. Also resets baud rate to default 115k
