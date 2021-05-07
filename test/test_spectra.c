@@ -42,7 +42,7 @@ int main() {
 	hypstar_t *pHs;
 	pHs = hypstar_init(port.c_str());
 	hypstar_set_loglevel(pHs, DEBUG);
-	int count = hypstar_capture_spectra(pHs, VNIR, RADIANCE, 100, 0, 2, 1);
+	int count = hypstar_capture_spectra(pHs, VNIR, RADIANCE, 100, 0, 2, 1, true);
 	assert(count == 2);
 	unsigned short slots[10];
 	count = hypstar_get_last_capture_memory_slots(pHs, slots, count);
