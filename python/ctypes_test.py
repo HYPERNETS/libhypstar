@@ -195,18 +195,43 @@ class CtypeTests(unittest.TestCase):
 			pass
 
 		# rotate to correctly predict count
-		self.radiometer.capture_spectra(RadiometerType.SWIR, RadiometerEntranceType.RADIANCE, 10, 0, 1, 0)
-		count = self.radiometer.capture_spectra(RadiometerType.SWIR, RadiometerEntranceType.RADIANCE, 0, 0, 2, 0)
-		assert count == 2
+		self.radiometer.capture_spectra(RadiometerType.VIS_NIR, RadiometerEntranceType.RADIANCE, 10, 0, 1, 0)
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.RADIANCE, 0, 0, 2, 0)
+		assert count >= 2
 		# rotate to correctly predict count
-		self.radiometer.capture_spectra(RadiometerType.SWIR, RadiometerEntranceType.IRRADIANCE, 10, 0, 1, 0)
-		count = self.radiometer.capture_spectra(RadiometerType.SWIR, RadiometerEntranceType.IRRADIANCE, 0, 0, 4, 0)
+		self.radiometer.capture_spectra(RadiometerType.VIS_NIR, RadiometerEntranceType.IRRADIANCE, 10, 0, 1, 0)
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.IRRADIANCE, 0, 0, 4, 0)
 
-		count = self.radiometer.capture_spectra(RadiometerType.SWIR, RadiometerEntranceType.DARK, 0, 0, 1, 0)
-		assert count == 1
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.DARK, 0, 0, 1, 0)
+		assert count >= 1
 
 		slots = self.radiometer.get_last_capture_spectra_memory_slots(count)
+
 		assert len(slots) == count
+
+		spectra = self.radiometer.download_spectra(slots)
+
+	def test_capture_spectrum_auto_it_BOTH_with_reuse(self):
+		self.radiometer.set_log_level(HypstarLogLevel.TRACE)
+		if not self.radiometer.hw_info.swir_module_available:
+			print('SWIR module not available')
+			pass
+
+		# rotate to correctly predict count
+		self.radiometer.capture_spectra(RadiometerType.VIS_NIR, RadiometerEntranceType.RADIANCE, 10, 0, 1, 0)
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.RADIANCE, 0, 0, 2, 0, reuse_last_AIT_value=True)
+		assert count >= 2
+		# rotate to correctly predict count
+		self.radiometer.capture_spectra(RadiometerType.VIS_NIR, RadiometerEntranceType.IRRADIANCE, 10, 0, 1, 0)
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.IRRADIANCE, 0, 0, 4, 0, reuse_last_AIT_value=True)
+
+		count = self.radiometer.capture_spectra(RadiometerType.BOTH, RadiometerEntranceType.DARK, 0, 0, 1, 0, reuse_last_AIT_value=True)
+		assert count >= 1
+
+		slots = self.radiometer.get_last_capture_spectra_memory_slots(count)
+
+		assert len(slots) == count
+
 		spectra = self.radiometer.download_spectra(slots)
 
 	def test_capture_spectrum_and_convert(self):

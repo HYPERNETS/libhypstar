@@ -82,3 +82,52 @@ int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, i
 	}
 	return specs[0].spectrum_header.integration_time_ms;
 }
+
+void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
+	s_environment_log_entry log = *item;
+	time_t t = log.timestamp / 1000;
+	auto tm = *localtime(&t);
+
+	cout << "Timestamp: " << log.timestamp << " (" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ")\n";
+	cout << setw(30) << left << "Temp RH ('C):" << log.humidity_sensor_temperature << "\n";
+	cout << setw(30) << left << "Temp Pressure ('C):" << log.pressure_sensor_temperature << "\n";
+	cout << setw(30) << left << "Temp ambient ('C):" << log.internal_ambient_temperature << "\n";
+	cout << setw(30) << left << "Temp SWIR body ('C):" << log.swir_body_temperature << "\n";
+	cout << setw(30) << left << "Temp SWIR sink ('C):" << log.swir_heatsink_temperature << "\n";
+	cout << setw(30) << left << "RH (%):" << log.humidity_sensor_humidity << "\n";
+	cout << setw(30) << left << "Pressure (mbar)\t" << log.pressure_sensor_pressure << "\n";
+
+	cout << setw(30) << left << "E common (mWh):" << log.energy_common_3v3 << "\n";
+	cout << setw(30) << left << "E e_cam_3v3 (mWh):" << log.energy_camera_3v3 << "\n";
+	cout << setw(30) << left << "E e_mcu_3v3 (mWh):" << log.energy_mcu_3v3 << "\n";
+	cout << setw(30) << left << "E e_swir_12v (mWh):" << log.energy_swir_module_12v << "\n";
+	cout << setw(30) << left << "E e_mux_12v (mWh):" << log.energy_multiplexer_12v << "\n";
+	cout << setw(30) << left << "E e_vnir_5v (mWh):" << log.energy_vnir_module_5v << "\n";
+	cout << setw(30) << left << "E e_input_12v (mWh):" << log.energy_input_12v << "\n";
+
+	cout << setw(30) << left << "i_common_3v3:" << log.current_common_3v3 << "\n";
+	cout << setw(30) << left << "i_mcu_3v3:" << log.current_mcu_3v3 << "\n";
+	cout << setw(30) << left << "i_cam_3v3:" << log.current_camera_3v3 << "\n";
+	cout << setw(30) << left << "i_swir_12v:" << log.current_swir_module_12v << "\n";
+	cout << setw(30) << left << "i_mux_12v:" << log.current_multiplexer_12v << "\n";
+	cout << setw(30) << left << "i_vnir_5v:" << log.current_vnir_module_5v << "\n";
+	cout << setw(30) << left << "i_input_12v:" << log.current_input_12v << "\n";
+
+	cout << setw(30) << left << "u_common_3v3:" << log.voltage_common_3v3 << "\n";
+	cout << setw(30) << left << "u_cam_3v3:" << log.voltage_camera_3v3 << "\n";
+	cout << setw(30) << left << "u_mcu_3v3:" << log.voltage_mcu_3v3 << "\n";
+	cout << setw(30) << left << "u_swir_12v:" << log.voltage_swir_module_12v << "\n";
+	cout << setw(30) << left << "u_mux_12v:" << log.voltage_multiplexer_12v << "\n";
+	cout << setw(30) << left << "u_vnir_5v:" << log.voltage_vnir_module_5v << "\n";
+	cout << setw(30) << left << "u_input_12v:" << log.voltage_input_12v << "\n";
+
+	float accel_gs[3] = {0.0f, 0.0f, 0.0f};
+	pHs->convertRawAccelerometerDataToGsFromEnvLog(item, accel_gs);
+	float accel_ms[3] = {0.0f, 0.0f, 0.0f};
+	pHs->convertRawAccelerometerDataToMsFromEnvLog(item, accel_ms);
+
+	cout << "Acceleration:" << endl;
+	cout << "\tX:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[0] << "( " << accel_gs[0] << " g\t/ " << accel_ms[0] <<" ms2)" << endl;
+	cout << "\tY:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[1] << "( " << accel_gs[1] << " g\t/ " << accel_ms[1] <<" ms2)" << endl;
+	cout << "\tZ:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[2] << "( " << accel_gs[2] << " g\t/ " << accel_ms[2] <<" ms2)" << endl;
+}
