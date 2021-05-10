@@ -82,6 +82,9 @@ class EnvironmentLogEntry(Structure):
 		('current_multiplexer_12v', c_float),
 		('current_vnir_module_5v', c_float),
 		('current_input_12v', c_float),
+		('energy_vm', c_float),
+		('voltage_vm', c_float),
+		('current_vm', c_float),
 	]
 
 	def parse(self):
