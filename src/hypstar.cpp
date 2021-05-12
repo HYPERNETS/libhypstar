@@ -2005,3 +2005,14 @@ bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integra
 	(*cb_function)(&s);
 	return true;
 }
+
+struct s_libhypstar_version getLibHypstarVersion(void)
+{
+	struct s_libhypstar_version libver;
+	libver.major = DVER_MAJOR;
+	libver.minor = DVER_MINOR;
+	libver.revision = DVER_REVISION;
+	strncpy(libver.hash, DVER_HASH, sizeof(libver.hash));
+
+	return libver;
+}
