@@ -783,8 +783,8 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 	unsigned short spectrum_length = 0;
 	memset(pSpectraDataTarget->spectrum_body, 0, MAX_SPEC_LENGTH * sizeof(unsigned short));
 
-	int retries = 1;
-	for (; retries <= CMD_RETRY; retries++)
+	int retries = 0;
+	for (; retries < CMD_RETRY; retries++)
 	{
 		try
 		{
@@ -792,17 +792,19 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 		}
 		catch (eBadRxDatasetCRC &e)
 		{
-			LOG_ERROR("Bad spectrum CRC, retrying\n", retries+1);
+			LOG_ERROR("Bad spectrum CRC, retrying\n");
 			continue;
 		}
-		LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
-				spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
+		LOG_DEBUG("Slot=%d, spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
+				memorySlotId, spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
 				*((uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4) ));
 		break;
 	}
+
 	if (retries == CMD_RETRY)
 	{
-		LOG_ERROR("Failed to download spectrum from slot %d in % retries", memorySlotId, retries);
+		LOG_ERROR("Failed to download spectrum from slot %d in %d retries\n", memorySlotId, retries);
+		return 0;
 	}
 
 	// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
@@ -811,6 +813,7 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 		memcpy(&pSpectraDataTarget->crc32_spaceholder, (uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4), sizeof(typeof(pSpectraDataTarget->crc32_spaceholder)));
 		memset(&pSpectraDataTarget->spectrum_body[256], 0, 4);
 	}
+
 	return spectrum_length;
 }
 
@@ -824,8 +827,14 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 		for (n = 0; n < numberOfCaptures; n++)
 		{
 			p_spec_data = (unsigned char*)(pSpectraDataTarget + n_success);
-			getSingleSpectrumFromMemorySlot(pMemorySlotIds[n], (s_spectrum_dataset *)p_spec_data);
-			n_success++;
+
+			if (getSingleSpectrumFromMemorySlot(pMemorySlotIds[n], (s_spectrum_dataset *)p_spec_data))
+				n_success++;
+			else
+			{
+				LOG_ERROR("Skipping spectrum in slot %d\n", pMemorySlotIds[n]);
+				continue;
+			}
 		}
 	}
 	catch (eHypstar &e)

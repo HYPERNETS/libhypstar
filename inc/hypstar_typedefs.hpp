@@ -26,11 +26,11 @@
 #define TEC_OFF -100.0
 
 // capture timeout multiplier
-#define CAPTURE_TIMEOUT_MULT 1.4
+#define CAPTURE_TIMEOUT_MULT 1.8
 // capture timeout addition (seconds) to each capture (mainly for SWIR overhead on 115kbps serial)
 #define CAPTURE_TIMEOUT_ADD_EACH 0.2
 // capture timeout addition (seconds; has to be long enough for changing MUX position)
-#define CAPTURE_TIMEOUT_ADD 5.0
+#define CAPTURE_TIMEOUT_ADD 15.0
 
 // default image capture timeout in seconds
 #define DEFAULT_IMG_TIMEOUT 10.0
