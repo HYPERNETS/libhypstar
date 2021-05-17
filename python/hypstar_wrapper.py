@@ -11,11 +11,12 @@ from .data_structs.varia import HypstarAutoITStatus
 
 
 class HypstarLogLevel(IntEnum):
-	ERROR = 0
-	WARNING = 1
-	INFO = 2
-	DEBUG = 3
-	TRACE = 4
+	SILENT = 0
+	ERROR = 1
+	WARNING = 2
+	INFO = 3
+	DEBUG = 4
+	TRACE = 5
 
 	def __init__(self, value):
 		self._as_parameter = int(value)

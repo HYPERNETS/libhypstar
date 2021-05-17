@@ -265,6 +265,21 @@ class Hypstar
 		 */
 		bool reboot(void);
 
+		/**
+		 * \brief	listens on given serial port for instrument BOOTED message at default baudrate
+		 * \param portname serial port name (e.g. /dev/ttyUSB0
+		 * \param timeout_s for how long should we wait
+		 * \return status of execution: True if there was a response, false if there were none.
+		 */
+		static bool waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel = INFO);
+
+		/**
+		 * \brief	Fills firmware_info structure.
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool getFirmwareInfo(void);
+
+
 		/********************* UNSAFE! THESE CAN BRICK YOUR INSTRUMENT IF YOU TRY REAL HARD! **********************/
 
 		/**
@@ -290,11 +305,6 @@ class Hypstar
 		bool saveCalibrationCoefficients(void);
 
 		/**
-		 * \brief	Fills firmware_info structure.
-		 * \return status of execution: True if successful, false if not.
-		 */
-		bool getFirmwareInfo(void);
-		/**
 		 * \brief	Sends new firmware data to the instrument.
 		 * Must be called in flash write mode.
 		 * \param filePath path to the binary file to send to the instrument
@@ -316,13 +326,7 @@ class Hypstar
 		 */
 		bool switchFirmwareSlot(void);
 
-		/**
-		 * \brief	listens on given serial port for instrument BOOTED message at default baudrate
-		 * \param portname serial port name (e.g. /dev/ttyUSB0
-		 * \param timeout_s for how long should we wait
-		 * \return status of execution: True if there was a response, false if there were none.
-		 */
-		static bool waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel = INFO);
+		/********************* END OF UNSAFE **********************/
 
 		/* General information about the instrument */
 		struct s_booted hw_info;
@@ -380,11 +384,19 @@ class Hypstar
 #define SEND_AND_WAIT_FOR_ACK_AND_DONE(x, y, z, q) sendAndWaitForAckAndDone(x, y, z, #x, q)
 #define SEND_PACKETED_DATA(x, y, z) sendPacketedData(x, y, z, #x)
 
+
 // Wrapper for interfacing with C or Python via ctypes
 extern "C"
 {
 	struct hs_object_holder;
 	typedef struct hs_object_holder hypstar_t;
+
+	struct s_libhypstar_version {
+		int major;
+		int minor;
+		int revision;
+		char hash[16];
+	};
 
 	hypstar_t *hypstar_init(const char *port);
 	void hypstar_close(hypstar_t *hs);
@@ -414,6 +426,8 @@ extern "C"
 	bool hypstar_send_calibration_coefficients(hypstar_t *hs, s_extended_calibration_coefficients *pNewExternalCalibrationCoeficients);
 	bool hypstar_save_calibration_coefficients(hypstar_t *hs);
 	bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integration_time_adjustment_status *), int paramA, int paramB);
+
+	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 
 #endif // include guard
