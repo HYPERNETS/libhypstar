@@ -86,6 +86,7 @@ install: lib
 	install -m 0666 inc/hypstar.h $(INSTALL_DIR)/include
 	install -m 0666 inc/hypstar_typedefs.hpp $(INSTALL_DIR)/include
 	install -m 0666 inc/serial/libhypstar_linuxserial.h $(INSTALL_DIR)/include
+	echo "$(INSTALL_DIR)/lib" > /etc/ld.so.conf.d/hypstar.conf
 	ldconfig
 
 uninstall: 
@@ -93,4 +94,5 @@ uninstall:
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/include/hypstar*
 	$(RM) $(INSTALL_DIR)/include/libhypstar*
+	$(RM} /etc/ld.so.conf.d/hypstar.conf
 	ldconfig

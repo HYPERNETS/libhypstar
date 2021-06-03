@@ -273,6 +273,13 @@ struct __attribute__((__packed__)) s_extended_calibration_coefficients
 	uint32_t crc32;
 };
 
+struct __attribute__((__packed__)) s_power_monitor_raw
+{
+	float energy[4];
+	float voltage[4];
+	float current[4];
+};
+
 struct __attribute__((__packed__)) s_environment_log_entry
 {
 	int64_t timestamp; 						// == time_t tm, but time_t is 32 bits on 32bit system and 64 bits on 64bit system...
@@ -284,33 +291,38 @@ struct __attribute__((__packed__)) s_environment_log_entry
 	float internal_ambient_temperature;
 	float swir_body_temperature;
 	float swir_heatsink_temperature;
-	float energy_common_3v3;				// mWhrs of energy consumed by all the control electronics and camera on 3.3V bus since last boot
-	float energy_mcu_3v3;					// mWhrs of energy consumed by all the control electronics on 3.3V bus since last boot
-	float energy_camera_3v3;				// mWhrs of energy consumed by camera module on 3.3V bus since last boot
-	float energy_dummy;
-	float voltage_common_3v3;				// volts of instantaneous measurement on 3.3V shared bus
-	float voltage_mcu_3v3;					// volts of instantaneous measurement on 3.3V control electronics bus
-	float voltage_camera_3v3;				// volts of instantaneous measurement on 3.3V camera bus
-	float voltage_dummy;
-	float current_common_3v3;				// Amperes of instantaneous measurement on 3.3V shared bus
-	float current_mcu_3v3;					// Amperes of instantaneous measurement on 3.3V control electronics bus
-	float current_camera_3v3;				// Amperes of instantaneous measurement on 3.3V camera bus
-	float current_dummy;
-	float energy_swir_module_12v;			// mWhrs of energy consumed by SWIR and SWIR Thermal control (TEC) modules on 12V bussince last boot
-	float energy_multiplexer_12v;			// mWhrs of energy consumed by optical multiplexer on 12V bus since last boot
+
+	// Power monitor 1
 	float energy_vnir_module_5v;			// mWhrs of energy consumed by VNIR module on 5V bus since last boot
-	float energy_input_12v;					// mWhrs of energy consumed by the whole instrument on 12V power input bus since last boot
-	float voltage_swir_module_12v;			// volts of instantaneous measurement on SWIR + SWIR TEC 12V bus
-	float voltage_multiplexer_12v;			// volts of instantaneous measurement on 12V optical multiplexer shared bus
+	float energy_mcu_3v3;					// mWhrs of energy consumed by all the control electronics on 3.3V bus since last boot
+	float energy_common_3v3;				// mWhrs of energy consumed by all the control electronics and camera on 3.3V bus since last boot
+	float energy_camera_3v3;				// mWhrs of energy consumed by camera module on 3.3V bus since last boot
+
 	float voltage_vnir_module_5v;			// volts of instantaneous measurement on 5V VNIR module power bus
-	float voltage_input_12v;				// volts of instantaneous measurement on 12V power input bus
-	float current_swir_module_12v;			// Amperes of instantaneous measurement on 12V SWIR + SWIR TEC power bus
-	float current_multiplexer_12v;			// Amperes of instantaneous measurement on 12V optical multiplexer bus
+	float voltage_mcu_3v3;					// volts of instantaneous measurement on 3.3V control electronics bus
+	float voltage_common_3v3;				// volts of instantaneous measurement on 3.3V shared bus
+	float voltage_camera_3v3;				// volts of instantaneous measurement on 3.3V camera bus
+
 	float current_vnir_module_5v;			// Amperes of instantaneous measurement on 5V VNIR module power bus
+	float current_mcu_3v3;					// Amperes of instantaneous measurement on 3.3V control electronics bus
+	float current_common_3v3;				// Amperes of instantaneous measurement on 3.3V shared bus
+	float current_camera_3v3;				// Amperes of instantaneous measurement on 3.3V camera bus
+
+	// Power monitor 2
+	float energy_swir_module_12v;			// mWhrs of energy consumed by SWIR and SWIR Thermal control (TEC) modules on 12V bus since last boot
+	float energy_validation_module_12v;
+	float energy_input_12v;					// mWhrs of energy consumed by the whole instrument on 12V power input bus since last boot
+	float energy_multiplexer_12v;			// mWhrs of energy consumed by optical multiplexer on 12V bus since last boot
+
+	float voltage_swir_module_12v;			// volts of instantaneous measurement on SWIR + SWIR TEC 12V bus
+	float voltage_validation_module_12v;
+	float voltage_input_12v;				// volts of instantaneous measurement on 12V power input bus
+	float voltage_multiplexer_12v;			// volts of instantaneous measurement on 12V optical multiplexer shared bus
+
+	float current_swir_module_12v;			// Amperes of instantaneous measurement on 12V SWIR + SWIR TEC power bus
+	float current_validation_module_12v;
 	float current_input_12v;				// Amperes of instantaneous measurement on 12V power input
-	float energy_vm;
-	float voltage_vm;
-	float current_vm;
+	float current_multiplexer_12v;			// Amperes of instantaneous measurement on 12V optical multiplexer bus
 };
 
 // supported baud rates

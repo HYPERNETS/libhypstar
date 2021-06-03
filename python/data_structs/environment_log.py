@@ -61,30 +61,30 @@ class EnvironmentLogEntry(Structure):
 		('internal_ambient_temperature', c_float),
 		('swir_body_temperature', c_float),
 		('swir_heatsink_temperature', c_float),
-		('energy_common_3v3', c_float),
+		('energy_vnir_module_5v', c_float),
 		('energy_mcu_3v3', c_float),
+		('energy_common_3v3', c_float),
 		('energy_camera_3v3', c_float),
-		('voltage_common_3v3', c_float),
+		('voltage_vnir_module_5v', c_float),
 		('voltage_mcu_3v3', c_float),
+		('voltage_common_3v3', c_float),
 		('voltage_camera_3v3', c_float),
-		('current_common_3v3', c_float),
+		('current_vnir_module_5v', c_float),
 		('current_mcu_3v3', c_float),
+		('current_common_3v3', c_float),
 		('current_camera_3v3', c_float),
 		('energy_swir_module_12v', c_float),
-		('energy_multiplexer_12v', c_float),
-		('energy_vnir_module_5v', c_float),
+		('energy_validation_module_12v', c_float),
 		('energy_input_12v', c_float),
+		('energy_multiplexer_12v', c_float),
 		('voltage_swir_module_12v', c_float),
-		('voltage_multiplexer_12v', c_float),
-		('voltage_vnir_module_5v', c_float),
+		('voltage_validation_module_12v', c_float),
 		('voltage_input_12v', c_float),
+		('voltage_multiplexer_12v', c_float),
 		('current_swir_module_12v', c_float),
-		('current_multiplexer_12v', c_float),
-		('current_vnir_module_5v', c_float),
+		('current_validation_module_12v', c_float),
 		('current_input_12v', c_float),
-		('energy_vm', c_float),
-		('voltage_vm', c_float),
-		('current_vm', c_float),
+		('current_multiplexer_12v', c_float),
 	]
 
 	def parse(self):
@@ -98,6 +98,7 @@ class EnvironmentLogEntry(Structure):
 		self.input_12V = PowerBusInfo().parse('input_12v', self)
 		self.optical_multiplexer_12V = PowerBusInfo().parse('multiplexer_12v', self)
 		self.swir_12V = PowerBusInfo().parse('swir_module_12v', self)
+		self.validation_module_12V = PowerBusInfo().parse('validation_module_12v', self)
 		self.vnir_5V = PowerBusInfo().parse('vnir_module_5v', self)
 		self.common_3V3 = PowerBusInfo().parse('common_3v3', self)
 		self.digital_electronics_3V3 = PowerBusInfo().parse('mcu_3v3', self)
@@ -111,19 +112,22 @@ class EnvironmentLogEntry(Structure):
 			'\tSWIR body: {:.2f}, SWIR heatsink: {:.2f}\n' \
 			'RH: {}%, internal pressure: {} mBar\n' \
 			'Power buses:\n' \
-			'\t12 V input: \t\t{}\n' \
-			'\t12 V Multiplexer: \t{}\n' \
-			'\t12 V SWIR: \t\t\t{}\n' \
-			'\t5 V VIS-NIR: \t\t{}\n' \
-			'\t3.3 V common: \t\t{}\n' \
-			'\t3.3 V digital: \t\t{}\n' \
-			'\t3.3 V camera: \t\t{}\n' \
+			'\t12V input: \t\t\t\t{}\n' \
+			'\t12V Multiplexer: \t\t{}\n' \
+			'\t12V SWIR: \t\t\t\t{}\n' \
+			'\t12V Validation module: \t{}\n' \
+			'\t5V VIS-NIR: \t\t\t{}\n' \
+			'\t3.3V common: \t\t\t{}\n' \
+			'\t3.3V digital: \t\t\t{}\n' \
+			'\t3.3V camera: \t\t\t{}\n' \
 			'{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
 						self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
 						self.swir_body_temperature, self.swir_heatsink_temperature,
 						self.humidity, self.pressure / 10,
-						self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
+						self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.validation_module_12V,
+						self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
 						self.accelerometer_data)
+
 
 	# Joel already has a bunch of processing scripts using default packet layout
 	def get_csv_line(self):

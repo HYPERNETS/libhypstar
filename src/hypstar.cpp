@@ -305,65 +305,76 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 	}
 
 	// energy meter info has changed new hardware version
-	if (hw_info.psu_hardware_version > 3)
-	{
-		uint8_t offset = 38;
-		memcpy(pTarget, (rxbuf + 3), offset);
-		offset = offset +3;
-		pTarget->energy_vnir_module_5v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_mcu_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_common_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_camera_3v3 = *(float*)&rxbuf[offset];
-		printf("e_cam = %f (%02x %02x %02x %02x\n", *(float*)&rxbuf[offset], rxbuf[offset], rxbuf[offset+1], rxbuf[offset+2], rxbuf[offset+3]);
-		offset = offset +4;
-		pTarget->voltage_vnir_module_5v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_mcu_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_common_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_camera_3v3 = *((float*)&rxbuf[offset]);
-		offset = offset +4;
-		pTarget->current_vnir_module_5v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_mcu_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_common_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_camera_3v3 = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_swir_module_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_vm = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_input_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->energy_multiplexer_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_swir_module_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_vm = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_input_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->voltage_multiplexer_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_swir_module_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_vm = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_input_12v = *(float*)&rxbuf[offset];
-		offset = offset +4;
-		pTarget->current_multiplexer_12v = *(float*)&rxbuf[offset];
+	/* 2 power monitors x4 channels each
+	 * FW < 0.15.x returns info only on channels enabled
+	 * FW > 0.15.0 returns all channels, even if they are not measured or disabled on particular hardware
+	 * HW > v4 has mix of 4 and 3 channel ones due to chip shortage (YAY CORONAA!)
+	 * 3 channel ones should return 0 on ones with least interesting data (MUX and camera info, which can be deduced from general 12V and 3V3 data)
+	 * HW > v4 also has changed output mappings to optimize layout:
+	 * PM1 Ch1: 5V VNIR; Ch2: 3V3_MCU; Ch3: 3V3_common; Ch4: 3V3_camera
+	 * PM2 Ch1: 12V SWIR; Ch2: 12V VM; Ch3: 12V_total; Ch4: 12V_MUX
+	 *
+	 * HW < v4 has:
+	 * PM1 Ch1: 3v3_common; Ch2: 3V3_MCU; Ch3: 3V3_camera; Ch4: empty
+	 * PM2 Ch1: 12V SWIR; Ch2: 12V MUX; Ch3: 5V VNIR; Ch4: 12V_total
+	 */
 
+	if (hw_info.psu_hardware_version > 3) {
+		// map directly, since full-length (including 0 values) is provided by the instrument
+		// also all the new hardware should have newer firmware anyway
+		memcpy(pTarget, (rxbuf + 3), sizeof(struct s_environment_log_entry));
 	}
 	else
 	{
-		memcpy(pTarget, (rxbuf + 3), sizeof(struct s_environment_log_entry));
+		// Beginning of packet hasn't changed
+		uint8_t offset = 38;
+		memcpy(pTarget, (rxbuf + 3), offset);
+		offset = offset +3;
+		float *pFloats = (float*)&rxbuf[offset];
+		int idx = 0;
+
+		pTarget->energy_common_3v3 = pFloats[idx++];
+		pTarget->energy_mcu_3v3 = pFloats[idx++];
+		pTarget->energy_camera_3v3 = pFloats[idx++];
+		if (hw_info.firmware_version_minor > 14)
+		{
+			pTarget->energy_vm = pFloats[idx++];
+		}
+		pTarget->voltage_common_3v3 = pFloats[idx++];
+		pTarget->voltage_mcu_3v3 = pFloats[idx++];
+		pTarget->voltage_camera_3v3 = pFloats[idx++];
+		if (hw_info.firmware_version_minor > 14)
+		{
+			pTarget->voltage_vm = pFloats[idx++];
+		}
+		pTarget->current_common_3v3 = pFloats[idx++];
+		pTarget->current_mcu_3v3 = pFloats[idx++];
+		pTarget->current_camera_3v3 = pFloats[idx++];
+		if (hw_info.firmware_version_minor > 14)
+		{
+			pTarget->current_vm = pFloats[idx++];
+		}
+		pTarget->energy_swir_module_12v = pFloats[idx++];
+		pTarget->energy_multiplexer_12v = pFloats[idx++];
+		pTarget->energy_vnir_module_5v = pFloats[idx++];
+		pTarget->energy_input_12v = pFloats[idx++];
+		pTarget->voltage_swir_module_12v = pFloats[idx++];
+		pTarget->voltage_multiplexer_12v = pFloats[idx++];
+		pTarget->voltage_vnir_module_5v = pFloats[idx++];
+		pTarget->voltage_input_12v = pFloats[idx++];
+		pTarget->current_swir_module_12v = pFloats[idx++];
+		pTarget->current_multiplexer_12v = pFloats[idx++];
+		pTarget->current_vnir_module_5v = pFloats[idx++];
+		pTarget->current_input_12v = pFloats[idx++];
+
+		if (hw_info.firmware_version_minor < 15)
+		{
+			pTarget->energy_vm = 0.0f;
+			pTarget->voltage_vm = 0.0f;
+			pTarget->current_vm = 0.0f;
+		}
 	}
+
 	return true;
 }
 
@@ -797,8 +808,8 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 	unsigned short spectrum_length = 0;
 	memset(pSpectraDataTarget->spectrum_body, 0, MAX_SPEC_LENGTH * sizeof(unsigned short));
 
-	int retries = 1;
-	for (; retries <= CMD_RETRY; retries++)
+	int retries = 0;
+	for (; retries < CMD_RETRY; retries++)
 	{
 		try
 		{
@@ -807,18 +818,20 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 		}
 		catch (eBadRxDatasetCRC &e)
 		{
-			LOG_ERROR("Bad spectrum CRC, retrying\n", retries+1);
+			LOG_ERROR("Bad spectrum CRC, retrying\n");
 			continue;
 		}
-		LOG_DEBUG("Spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
-				spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
+		LOG_DEBUG("Slot=%d, spectrum total_length=%d, crc_slot pointer = %p, target slot pointer = %p, crc32_in position = 0x%.8X\n",
+				memorySlotId, spectrum_length, pSpectraDataTarget, (void*)((long)pSpectraDataTarget+spectrum_length-4),
 				*((uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4) ));
 		break;
 	}
+
 	if (retries == CMD_RETRY)
 	{
-		LOG_ERROR("Failed to download spectrum from slot %d in % retries", memorySlotId, retries);
+		LOG_ERROR("Failed to download spectrum from slot %d in %d retries\n", memorySlotId, retries);
 		throw eHypstar();
+//		return 0;
 	}
 
 	// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
@@ -827,6 +840,7 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 		memcpy(&pSpectraDataTarget->crc32_spaceholder, (uint32_t*) ((long)pSpectraDataTarget+spectrum_length-4), sizeof(typeof(pSpectraDataTarget->crc32_spaceholder)));
 		memset(&pSpectraDataTarget->spectrum_body[256], 0, 4);
 	}
+
 	return spectrum_length;
 }
 
@@ -840,8 +854,14 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 		for (n = 0; n < numberOfCaptures; n++)
 		{
 			p_spec_data = (unsigned char*)(pSpectraDataTarget + n_success);
-			getSingleSpectrumFromMemorySlot(pMemorySlotIds[n], (s_spectrum_dataset *)p_spec_data);
-			n_success++;
+
+			if (getSingleSpectrumFromMemorySlot(pMemorySlotIds[n], (s_spectrum_dataset *)p_spec_data))
+				n_success++;
+			else
+			{
+				LOG_ERROR("Skipping spectrum in slot %d\n", pMemorySlotIds[n]);
+				continue;
+			}
 		}
 	}
 	catch (eHypstar &e)
