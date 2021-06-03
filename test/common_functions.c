@@ -53,6 +53,8 @@ void test_and_print_single_spec(unsigned short slot, s_spectrum_dataset *s, int 
 
 int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, int inttime_swir, int cap_count) {
 	int count = hs->captureSpectra(rad, entr, inttime_vis, inttime_swir, cap_count, 0);
+	if (count == 0)
+		return 0;
 	if (rad == BOTH)
 	{
 		if (inttime_vis && inttime_swir) {
@@ -62,8 +64,20 @@ int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, i
 //	assert(count == cap_count);
 	unsigned short slots[count];
 	hs->getLastSpectraCaptureMemorySlots(slots, count);
-	s_spectrum_dataset specs[count];
+
+	int spec_size = sizeof(s_spectrum_dataset) * count;
+	// for some reason instantiating array segfaults
+	s_spectrum_dataset *specs = (s_spectrum_dataset *) malloc(spec_size);
+	memset(specs, 0, spec_size);
+//	s_spectrum_dataset specs[count];
+
 	s_spectrum_dataset *s = &specs[0];
+
+	printf("Got slots: ");
+	for (int i = 0; i < count; i++) {
+		printf("%d ", slots[i]);
+	}
+	printf("\n");
 
 	int counter = 0;
 	// test getting single
@@ -80,7 +94,8 @@ int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, i
 			test_and_print_single_spec(slots[counter], s, inttime_vis, inttime_swir, rad, entr);
 		} while (++counter < count);
 	}
-	return specs[0].spectrum_header.integration_time_ms;
+	free(specs);
+	return count;
 }
 
 void printEnv(s_environment_log_entry *item, Hypstar *pHs) {

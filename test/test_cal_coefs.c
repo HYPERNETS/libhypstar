@@ -16,7 +16,8 @@ void print_array(const char* name, T *ptr, int count)
 }
 
 int main() {
-	std::string port = "/dev/ttyUSB0";
+	std::string port = "/dev/ttyUSB1";
+//	port = "/dev/ttyUSB0";
 	Hypstar *hs = Hypstar::getInstance(port);
 	hs->setLoglevel(DEBUG);
 
@@ -27,7 +28,7 @@ int main() {
 	print_array("ACCEL REF", hs->calibration_coefficients_basic.accelerometer_horizontal_reference, 3);
 
 	std::cout << "SN: " << hs->extended_calibration_coefficients.instrument_serial_number << "\n";
-	std::cout << "CAL DATE:" << hs->extended_calibration_coefficients.calibration_year << "-" << hs->extended_calibration_coefficients.calibration_month << "-" << hs->extended_calibration_coefficients.calibration_day << "\n";
+	printf("CAL DATE:%d-%d-%d\n", hs->extended_calibration_coefficients.calibration_year, hs->extended_calibration_coefficients.calibration_month, hs->extended_calibration_coefficients.calibration_day);
 	print_array("ACEL REF AGAIN" , hs->extended_calibration_coefficients.accelerometer_horizontal_reference, 3);
 //	print_array("VNIR NL coefs", hs->extended_calibration_coefficients.vnir_nonlinearity_coefficients, 4);
 //	print_array("VNIR coefs L", hs->extended_calibration_coefficients.vnir_coefficients_L, 2048);

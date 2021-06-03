@@ -1,6 +1,6 @@
 DVER_MAJOR := 0
 DVER_MINOR := 2
-DVER_REVISION := 2
+DVER_REVISION := 3
 NAME := hypstar
 VERSION := $(DVER_MAJOR).$(DVER_MINOR).$(DVER_REVISION)
 
@@ -83,9 +83,9 @@ install: lib
 	ln -s lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/lib$(NAME).so
 	ln -s lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/lib$(NAME).so.$(DVER_MAJOR)
 	ln -s lib$(NAME).so.$(VERSION) $(INSTALL_DIR)/lib/lib$(NAME).so.$(DVER_MAJOR).$(DVER_MINOR)
-	install -m 0644 inc/hypstar.h $(INSTALL_DIR)/include
-	install -m 0644 inc/hypstar_typedefs.hpp $(INSTALL_DIR)/include
-	install -m 0644 inc/serial/libhypstar_linuxserial.h $(INSTALL_DIR)/include
+	install -m 0666 inc/hypstar.h $(INSTALL_DIR)/include
+	install -m 0666 inc/hypstar_typedefs.hpp $(INSTALL_DIR)/include
+	install -m 0666 inc/serial/libhypstar_linuxserial.h $(INSTALL_DIR)/include
 	ldconfig
 
 uninstall: 

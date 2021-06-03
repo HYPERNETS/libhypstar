@@ -26,11 +26,11 @@
 #define TEC_OFF -100.0
 
 // capture timeout multiplier
-#define CAPTURE_TIMEOUT_MULT 1.4
+#define CAPTURE_TIMEOUT_MULT 1.8
 // capture timeout addition (seconds) to each capture (mainly for SWIR overhead on 115kbps serial)
 #define CAPTURE_TIMEOUT_ADD_EACH 0.2
 // capture timeout addition (seconds; has to be long enough for changing MUX position)
-#define CAPTURE_TIMEOUT_ADD 5.0
+#define CAPTURE_TIMEOUT_ADD 15.0
 
 // default image capture timeout in seconds
 #define DEFAULT_IMG_TIMEOUT 10.0
@@ -287,12 +287,15 @@ struct __attribute__((__packed__)) s_environment_log_entry
 	float energy_common_3v3;				// mWhrs of energy consumed by all the control electronics and camera on 3.3V bus since last boot
 	float energy_mcu_3v3;					// mWhrs of energy consumed by all the control electronics on 3.3V bus since last boot
 	float energy_camera_3v3;				// mWhrs of energy consumed by camera module on 3.3V bus since last boot
+	float energy_dummy;
 	float voltage_common_3v3;				// volts of instantaneous measurement on 3.3V shared bus
 	float voltage_mcu_3v3;					// volts of instantaneous measurement on 3.3V control electronics bus
 	float voltage_camera_3v3;				// volts of instantaneous measurement on 3.3V camera bus
+	float voltage_dummy;
 	float current_common_3v3;				// Amperes of instantaneous measurement on 3.3V shared bus
 	float current_mcu_3v3;					// Amperes of instantaneous measurement on 3.3V control electronics bus
 	float current_camera_3v3;				// Amperes of instantaneous measurement on 3.3V camera bus
+	float current_dummy;
 	float energy_swir_module_12v;			// mWhrs of energy consumed by SWIR and SWIR Thermal control (TEC) modules on 12V bussince last boot
 	float energy_multiplexer_12v;			// mWhrs of energy consumed by optical multiplexer on 12V bus since last boot
 	float energy_vnir_module_5v;			// mWhrs of energy consumed by VNIR module on 5V bus since last boot

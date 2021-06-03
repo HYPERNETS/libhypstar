@@ -84,7 +84,8 @@ int main(int argc, char **argv) {
 	}
 
 	printf("Attempting to upload new firmware %s\n", fw_path.c_str());
-	std::string port = "/dev/radiometer0";
+	std::string port = "/dev/ttyUSB1";
+//	port = "/dev/ttyUSB0";
 	Hypstar *hs = Hypstar::getInstance(port);
 	if (!hs)
 		return -1;
@@ -97,13 +98,17 @@ int main(int argc, char **argv) {
 	printf("Current FW version: %d.%d.%d in slot %d\n", hs->firmware_info.firmware_version_major,
 			hs->firmware_info.firmware_version_minor, hs->firmware_info.firmware_version_revision, hs->firmware_info.current_flash_slot);
 
+	s_firwmare_info old_fw = hs->firmware_info;
+//	memcpy(old_fw, hs->firmware_info, sizeof(struct Hypstar::s_firmware_info));
+
 	hs->sendNewFirmwareData(fw_path.c_str());
 	hs->saveNewFirmwareData();
 	hs->switchFirmwareSlot();
 
 	hs->getFirmwareInfo();
-	printf("New FW version: %d.%d.%d in slot %d\n", hs->firmware_info.firmware_version_major,
-				hs->firmware_info.firmware_version_minor, hs->firmware_info.firmware_version_revision, hs->firmware_info.current_flash_slot);
+	printf("New FW version: %d.%d.%d in slot %d (was %d.%d.%d in slot %d)\n", hs->firmware_info.firmware_version_major,
+				hs->firmware_info.firmware_version_minor, hs->firmware_info.firmware_version_revision, hs->firmware_info.current_flash_slot,
+				old_fw.firmware_version_major, old_fw.firmware_version_minor, old_fw.firmware_version_revision, old_fw.current_flash_slot);
 
 	printf("--------------\nC++ test pass\n");
 }

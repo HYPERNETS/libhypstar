@@ -317,6 +317,7 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 		pTarget->energy_common_3v3 = *(float*)&rxbuf[offset];
 		offset = offset +4;
 		pTarget->energy_camera_3v3 = *(float*)&rxbuf[offset];
+		printf("e_cam = %f (%02x %02x %02x %02x\n", *(float*)&rxbuf[offset], rxbuf[offset], rxbuf[offset+1], rxbuf[offset+2], rxbuf[offset+3]);
 		offset = offset +4;
 		pTarget->voltage_vnir_module_5v = *(float*)&rxbuf[offset];
 		offset = offset +4;
@@ -639,6 +640,15 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 		else // Automatic integration time: vnir_inttime_ms == 0 || swir_inttime_ms == 0
 		{
 			// DARK auto integration time should reuse last used exposure, otherwise it would adjust itself to infinity and beyond
+			// @TODO: AIT capture timeout calculations are actually incorrect. I
+			/* It takes about 1.5ms per VNIR spectrum to transfer data from radiometer to the instrument
+			 * It takes about 4.5ms per SWIR spectrum to transfer data from radiometer to the instrument
+			 * We also have to take into account ratios of integration times. Due to VNIR radiometer being more sensitive, it usually has much shorter integration times.
+			 * Instrument then calculates maximum duration for slowest radiometer T = (n_captures * IT), then uses that for caluculating number of captures
+			 * it can do with other radiometer n_captures_faster = (T / IT_faster).
+			 * It can happen that SWIR has 2048ms while VIS has 1ms, which would mean that we do n*2048ms + n*2048*1ms number of acquisitions.
+			 * Thus for single capture with above parameters we get timeout value of 2048ms + 2048 * 1.5ms or 5 seconds instead of expected 2-3s.
+			 */
 			if (entranceType == DARK)
 			{
 				timeout_s = scanCount * lastCaptureLongestIntegrationTime_ms * 1e-3 * CAPTURE_TIMEOUT_MULT + CAPTURE_TIMEOUT_ADD;
@@ -676,6 +686,10 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					catch (LibHypstar::eSerialSelectInterrupted &e) {
 						LOG_ERROR("Serial select interrupted\n");
 					}
+					catch (eBadResponse &e) {
+						// probably capture timeout, rethrow
+						throw e;
+					}
 					catch (eHypstar &e)
 					{
 						LOG_ERROR("Something else?\n");
@@ -687,13 +701,13 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					}
 					else if (rxbuf[0] != AUTOINT_STATUS) {
 						LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+						hnport->emptyInputBuf();
 						sendCmd(RESEND);
 						continue;
-
 					}
+
 					if (rxbuf[0] == AUTOINT_STATUS)
 					{
-
 						memcpy(&status, (rxbuf + 3), sizeof(struct s_automatic_integration_time_adjustment_status));
 						next_timeout = status.next_integration_time_ms * 1e-3 * CAPTURE_TIMEOUT_MULT * scanCount + CAPTURE_TIMEOUT_ADD;
 
@@ -788,6 +802,7 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 	{
 		try
 		{
+			LOG_DEBUG("Downloading spectrum from slot %d\n", memorySlotId);
 			spectrum_length = GET_PACKETED_DATA(GET_SPEC, (unsigned char*)&memorySlotId, (unsigned short)sizeof(memorySlotId), (unsigned char*)pSpectraDataTarget);
 		}
 		catch (eBadRxDatasetCRC &e)
@@ -803,6 +818,7 @@ unsigned short Hypstar::getSingleSpectrumFromMemorySlot(unsigned short memorySlo
 	if (retries == CMD_RETRY)
 	{
 		LOG_ERROR("Failed to download spectrum from slot %d in % retries", memorySlotId, retries);
+		throw eHypstar();
 	}
 
 	// copy over CRC32 to the correct position for SWIR dataset and remove CRC32 from spectral data body
@@ -1253,20 +1269,35 @@ int Hypstar::readData(float timeout_s)
 		// Response packet: response code(1), packet_length(2), cmd_code(1), cmd_packet_length(2), rest_of_cmd_packet(...), error_code(1)
 		cmd_len = *((unsigned short*)(rxbuf + 4));
 
+
+		unsigned short errcode2, parm2, n_errors;
+		// AIT command does not send whole packet body, just the CMD identifier
+		if (rxbuf[3] == CAPTURE_SPEC)
+		{
+			errcode = BAD_PARM;
+			errcode2 = rxbuf[9];
+			unsigned short vis_val, swir_val;
+			vis_val = *(unsigned short*) &rxbuf[10];
+			swir_val = *(unsigned short*) &rxbuf[12];
+			parm2 = vis_val != 0 ? vis_val : swir_val;
+			n_errors = 1;
+		}
 		// sanity check
-		if ((3 + cmd_len) > (count - 1))
+		else if ((3 + cmd_len) > (count - 1))
 		{
 			LOG_ERROR("Command length (%hu) in error packet is too long compared to received data length (%hu)\n", cmd_len, count);
 			throw eBadRx();
 		}
+		else
+		{
+			errcode = rxbuf[3 + cmd_len];
+			n_errors = (count - PACKET_DECORATORS_TOTAL_SIZE - lastOutgoingPacket.length -1) / 2;
+		}
 
-		errcode = rxbuf[3 + cmd_len];
 		error_ss << "Spectrometer responded with error " << std::hex <<  (unsigned short)errcode << std::dec << " - ";
 
 		// Response packet: response code(1), packet_length(2), outgoing_command_packet(x), general_error_code, (n x {error_code(1), parm_no(1)}, crc(1)
-		unsigned short n_errors = (count - PACKET_DECORATORS_TOTAL_SIZE - lastOutgoingPacket.length -1) / 2;
 		LOG_DEBUG("Len: %d, last packet: %d, Error count: %d\n", length, lastOutgoingPacket.length, n_errors);
-		unsigned short errcode2, parm2;
 
 		switch(errcode)
 		{
@@ -1281,8 +1312,11 @@ int Hypstar::readData(float timeout_s)
 			error_ss << "bad parameters:\n";
 			for (unsigned short j = 0; j < n_errors; j++)
 			{
-				errcode2 = rxbuf[3 + cmd_len + 1 + 2 * j];
-				parm2 = rxbuf[3 + cmd_len + 1 + 2 * j + 1];
+				if (rxbuf[3] != CAPTURE_SPEC)
+				{
+					errcode2 = rxbuf[3 + cmd_len + 1 + 2 * j];
+					parm2 = rxbuf[3 + cmd_len + 1 + 2 * j + 1];
+				}
 
 				switch(errcode2)
 				{
@@ -1302,7 +1336,7 @@ int Hypstar::readData(float timeout_s)
 					error_ss << "Parameter " << parm2 << " error - no limiting parameter has been provided (scan_count, series_time or DARK AUTO with no previous capture)\n";
 					break;
 				case INT_TOO_LONG:
-					error_ss << "Parameter " << parm2 << " error - integration time too long\n";
+					error_ss << "Parameter error - integration time too long: (" << parm2 << " ms) \n";
 					break;
 				case SEQ_TOO_LONG:
 					error_ss << "Parameter " << parm2 << " error - series time too long\n";
