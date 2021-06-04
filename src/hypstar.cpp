@@ -338,21 +338,21 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 		pTarget->energy_camera_3v3 = pFloats[idx++];
 		if (hw_info.firmware_version_minor > 14)
 		{
-			pTarget->energy_vm = pFloats[idx++];
+			pTarget->energy_validation_module_12v = pFloats[idx++];
 		}
 		pTarget->voltage_common_3v3 = pFloats[idx++];
 		pTarget->voltage_mcu_3v3 = pFloats[idx++];
 		pTarget->voltage_camera_3v3 = pFloats[idx++];
 		if (hw_info.firmware_version_minor > 14)
 		{
-			pTarget->voltage_vm = pFloats[idx++];
+			pTarget->voltage_validation_module_12v = pFloats[idx++];
 		}
 		pTarget->current_common_3v3 = pFloats[idx++];
 		pTarget->current_mcu_3v3 = pFloats[idx++];
 		pTarget->current_camera_3v3 = pFloats[idx++];
 		if (hw_info.firmware_version_minor > 14)
 		{
-			pTarget->current_vm = pFloats[idx++];
+			pTarget->current_validation_module_12v = pFloats[idx++];
 		}
 		pTarget->energy_swir_module_12v = pFloats[idx++];
 		pTarget->energy_multiplexer_12v = pFloats[idx++];
@@ -369,9 +369,9 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 
 		if (hw_info.firmware_version_minor < 15)
 		{
-			pTarget->energy_vm = 0.0f;
-			pTarget->voltage_vm = 0.0f;
-			pTarget->current_vm = 0.0f;
+			pTarget->energy_validation_module_12v = 0.0f;
+			pTarget->voltage_validation_module_12v = 0.0f;
+			pTarget->current_validation_module_12v = 0.0f;
 		}
 	}
 
