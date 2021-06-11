@@ -6,7 +6,7 @@
 using namespace std;
 
 int main() {
-	std::string port = "/dev/ttyUSB1";
+	std::string port = HYPSTAR_PORTNAME;
 	Hypstar *hs = Hypstar::getInstance(port);
 	hs->setLoglevel(TRACE);
 	time_t timestamp = time(NULL);

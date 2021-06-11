@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	}
 
 	printf("Attempting to upload new firmware %s\n", fw_path.c_str());
-	std::string port = "/dev/ttyUSB1";
+	std::string port = HYPSTAR_PORTNAME;
 //	port = "/dev/ttyUSB0";
 	Hypstar *hs = Hypstar::getInstance(port);
 	if (!hs)

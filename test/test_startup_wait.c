@@ -7,8 +7,9 @@
 using namespace std;
 
 int main() {
-	std::string port = "/dev/ttyUSB0";
+	std::string port = HYPSTAR_PORTNAME;
 	bool booted = hypstar_wait_for_instrument(port.c_str(), 15);
+
 	if (booted)
 	{
 		printf("Got boot\n");
@@ -17,5 +18,4 @@ int main() {
 	{
 		printf("Did not get instrument\n");
 	}
-
 }

@@ -4,6 +4,8 @@ DVER_REVISION := 3
 NAME := hypstar
 VERSION := $(DVER_MAJOR).$(DVER_MINOR).$(DVER_REVISION)
 
+HYPSTAR_PORTNAME := /dev/radiometer0
+
 CC := g++
 BUILD_DIR := build
 $(BUILD_DIR):
@@ -46,7 +48,7 @@ test_%: $(BUILD_DIR)/lib$(NAME).so
 	@echo --------------------------
 	@echo Building $@
 	@echo --------------------------
-	$(CC) $(EXTRA_CFLAGS) -rdynamic $(INCLUDES) -L./$(BUILD_DIR) -Wl,-rpath=./$(BUILD_DIR) -o $(BUILD_DIR)/$@ test/$@.c -lhypstar -lrt
+	$(CC) -DHYPSTAR_PORTNAME=\"$(HYPSTAR_PORTNAME)\" $(EXTRA_CFLAGS) -rdynamic $(INCLUDES) -L./$(BUILD_DIR) -Wl,-rpath=./$(BUILD_DIR) -o $(BUILD_DIR)/$@ test/$@.c -lhypstar -lrt
 
 	@echo --------------------------
 	@echo Executing $@ $(RUN_ARGS)

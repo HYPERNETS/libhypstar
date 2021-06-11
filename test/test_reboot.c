@@ -7,7 +7,7 @@
 using namespace std;
 
 int main() {
-	std::string port = "/dev/ttyUSB1";
+	std::string port = HYPSTAR_PORTNAME;
 	Hypstar *hs = Hypstar::getInstance(port);
 	auto t1 = std::chrono::high_resolution_clock::now();
 	hs->reboot();
