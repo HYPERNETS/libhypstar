@@ -164,10 +164,10 @@ bool Hypstar::getHardWareInfo(void)
 		hw_info.swir_pixel_count = 0;
 	}
 
-	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d\n",
+	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d\n",
 			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.vnir_pixel_count, hw_info.swir_module_available, hw_info.swir_pixel_count, hw_info.optical_multiplexer_available, hw_info.camera_available,
 			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available,
-			hw_info.vnir_pixel_count, hw_info.swir_pixel_count);
+			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device);
 
 	return true;
 }
