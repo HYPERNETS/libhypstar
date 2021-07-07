@@ -32,12 +32,12 @@ class Hypstar:
 	lib = None
 	hw_info = None
 
-	def __init__(self, port, dummy=False):
+	def __init__(self, port, dummy=False, loglevel=HypstarLogLevel.INFO, logprefix=""):
 		self.lib = CDLL('libhypstar.so')
 		port = create_string_buffer(bytes(port, 'ascii'))
 		self.define_argument_types()
 		if not dummy:
-			self.handle = self.lib.hypstar_init(port)
+			self.handle = self.lib.hypstar_init(port, loglevel, logprefix)
 			if not self.handle:
 				raise IOError("Could not retrieve instrument instance!")
 			self.get_hw_info()
@@ -48,6 +48,9 @@ class Hypstar:
 	def set_log_level(self, loglevel):
 		self.lib.hypstar_set_loglevel(self.handle, loglevel)
 
+	def set_log_prefix(self, logprefix):
+		self.lib.hypstar_set_logprefix(self.handle, logprefix)
+		
 	def get_hw_info(self):
 		self.hw_info = BootedPacketStruct()
 		r = self.lib.hypstar_get_hw_info(self.handle, pointer(self.hw_info))
@@ -164,6 +167,7 @@ class Hypstar:
 		self.lib.hypstar_close.argtypes = [c_void_p]
 		self.lib.hypstar_get_hw_info.argtypes = [c_void_p]
 		self.lib.hypstar_set_loglevel.argtypes = [c_void_p, HypstarLogLevel]
+		self.lib.hypstar_set_logprefix.argtypes = [c_void_p, c_void_p]
 		self.lib.hypstar_reboot.argtypes = [c_void_p]
 		self.lib.hypstar_set_baudrate.argtypes = [c_void_p, HypstarSupportedBaudRates]
 		self.lib.hypstar_get_time.argtypes = [c_void_p]

@@ -17,10 +17,20 @@
 
 std::vector<Hypstar::s_hypstar_instance> Hypstar::instance_holder;
 
-Hypstar::Hypstar(LibHypstar::linuxserial *serial)
+// set default log level
+e_loglevel Hypstar::_loglevel_static = INFO;
+
+char* Hypstar::_log_prefix_static = NULL;
+
+Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix)
 {
 	hnport = serial;
-	setLoglevel(INFO);
+	setLoglevel(loglevel);
+
+	if (logprefix == NULL)
+		setLogprefix("");
+	else
+		setLogprefix(logprefix);
 
 	CalculateCrcTable_CRC32();
 
@@ -75,12 +85,29 @@ Hypstar::~Hypstar()
 		}
 	}
 	delete hnport;
+	free(_log_prefix);
 }
 
 // static member function
-Hypstar* Hypstar::getInstance(std::string portname)
+Hypstar* Hypstar::getInstance(std::string portname, e_loglevel* loglevel, const char *logprefix)
 {
-	LOG(DEBUG, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
+	if (loglevel != NULL)
+		_loglevel_static = *loglevel;
+
+	if (logprefix != NULL)
+	{
+		_log_prefix_static = (char*)realloc(_log_prefix_static, strlen(logprefix) + 1);
+
+		if (_log_prefix_static)
+			strcpy(_log_prefix_static, logprefix);
+		else
+		{
+			LOG(ERROR, stderr, "Failed to reallocate memory for Hypstar::_log_prefix_static\n");
+			return NULL;
+		}
+	}
+
+	LOG(INFO, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
 	Hypstar* h;
 
 	// look through instance_holder for instance with the same portname
@@ -89,6 +116,12 @@ Hypstar* Hypstar::getInstance(std::string portname)
 		// if found, return pointer to that
 		if (portname.compare(i.port) == 0)
 		{
+			if (loglevel != NULL)
+				i.instance->setLoglevel(*loglevel);
+
+			if (logprefix != NULL)
+				i.instance->setLogprefix(logprefix);
+
 			LOG(DEBUG, stdout, "Returning existing driver instance %p\n", i.instance);
 			return i.instance;
 		}
@@ -98,7 +131,7 @@ Hypstar* Hypstar::getInstance(std::string portname)
 	// otherwise instantiate and append to instance_holder
 	try
 	{
-		h = new Hypstar(s);
+		h = new Hypstar(s, _loglevel_static, logprefix);
 	}
 	catch (eHypstar &e)
 	{
@@ -1663,22 +1696,28 @@ bool Hypstar::sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams
 }
 
 /* Logging */
-void Hypstar::printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args)
+void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args)
 {
 	time_t now = time(NULL);
 	auto tm = localtime(&now);
 	char timebuf[22];
 	strftime(timebuf, 20, "%Y-%m-%dT%H:%M:%S", tm);
-	fprintf(stream, "[%s]\t[%s] ", level_string, timebuf);
+	fprintf(stream, "%s[%s]\t[%s] ", prefix_string, level_string, timebuf);
 	vfprintf(stream, fmt, args);
 }
 
 void Hypstar::printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...)
 {
-	va_list args;
-	va_start(args, fmt);
-	printLog(level_target, level_string, stream, fmt, args);
-	va_end(args);
+	if (_loglevel_static >= level_target)
+	{
+		va_list args;
+		va_start(args, fmt);
+		if (_log_prefix_static != NULL)
+			printLog(_log_prefix_static, level_string, stream, fmt, args);
+		else
+			printLog("", level_string, stream, fmt, args);
+		va_end(args);
+	}
 }
 
 void Hypstar::outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...)
@@ -1687,7 +1726,7 @@ void Hypstar::outputLog(e_loglevel level, const char* level_string, FILE *stream
 	{
 		va_list args;
 		va_start(args, fmt);
-		printLog(level, level_string, stream, fmt, args);
+		printLog(_log_prefix, level_string, stream, fmt, args);
 		va_end(args);
 	}
 }
@@ -1713,8 +1752,21 @@ void Hypstar::logBytesRead(int rx_count, const char * expectedCommand, const cha
 	LOG_ERROR("%d bytes read: %s\n", rx_count, out);
 }
 
-void Hypstar::setLoglevel(e_loglevel loglevel) {
-	Hypstar::_loglevel = loglevel;
+void Hypstar::setLoglevel(e_loglevel loglevel)
+{
+	_loglevel = loglevel;
+}
+
+void Hypstar::setLogprefix(const char* logprefix)
+{
+	_log_prefix = (char*)realloc(_log_prefix, strlen(logprefix) + 1);
+
+	if (_log_prefix)
+		strcpy(_log_prefix, logprefix);
+	else
+	{
+		LOG(ERROR, stderr, "Failed to reallocate memory for Hypstar::_log_prefix\n");
+	}
 }
 
 /* C wrapper functions */
@@ -1725,13 +1777,13 @@ struct hs_object_holder
 
 static std::vector<hypstar_t*> object_holder_instances;
 
-hypstar_t* hypstar_init(const char *port)
+hypstar_t* hypstar_init(const char *port, e_loglevel* loglevel, const char* logprefix)
 {
 	hypstar_t *hs_wrapper;
 	Hypstar *obj;
 	try
 	{
-		obj = Hypstar::getInstance(port);
+		obj = Hypstar::getInstance(port, loglevel, logprefix);
 		if (!obj)
 		{
 			delete static_cast<Hypstar *> (obj);
@@ -1750,9 +1802,7 @@ hypstar_t* hypstar_init(const char *port)
 	for (hypstar_t *i : object_holder_instances)
 	{
 		if (i->hs_instance == obj)
-		{
 			return i;
-		}
 	}
 	// otherwise instantiate new wrapper and append to object_holder_instances
 	hs_wrapper = (typeof(hs_wrapper)) malloc(sizeof(*hs_wrapper));
@@ -1783,11 +1833,19 @@ void hypstar_close(hypstar_t *hs)
 void hypstar_set_loglevel(hypstar_t *hs, e_loglevel loglevel)
 {
 	if (hs == NULL)
-	{
 		return;
-	}
+
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
 	instance->setLoglevel(loglevel);
+}
+
+void hypstar_set_logprefix(hypstar_t *hs, const char* logprefix)
+{
+	if (hs == NULL)
+		return;
+
+	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
+	instance->setLogprefix(logprefix);
 }
 
 uint64_t hypstar_get_time(hypstar_t *hs)

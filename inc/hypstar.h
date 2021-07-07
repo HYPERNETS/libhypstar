@@ -39,9 +39,11 @@ class Hypstar
 		 * \brief	To avoid multiple access, Singleton-style instantiation is done
 		 * New instances are initialized to default baud rate and are reset to it in destructor
 		 * On initialization driver sets instrument timestamp to UTC time. Use setTime() to set to local time or whatever
-		 * \param portname name of the port (e.g. '/dev/ttyUSB0')
+		 * \param portname name of the port (e.g. '/dev/ttyUSB0').
+		 * \param log_prefix can optionally be used to prefix logging output, e.g. with "#" which is often used
+		 * as a default comment character. Each instance can have different loglevel and log_prefix.
 		 */
-		static Hypstar* getInstance(std::string portname);
+		static Hypstar* getInstance(std::string portname, e_loglevel* loglevel = NULL, const char* logprefix = NULL);
 
 		/**
 		 * Destructor. Also resets baud rate to default 115k
@@ -247,6 +249,12 @@ class Hypstar
 		void setLoglevel(e_loglevel loglevel);
 
 		/**
+		 * \brief	Sets prefix for all logs output by this driver.
+		 * \param	logprefix the prefix added to the beginning of all the output log lines
+		 */
+		void setLogprefix(const char* logprefix);
+
+		/**
 		 * \brief	sets SWIR module thermal control setpoint
 		 * \param float target temperature in 'C, must be in range [-15..40]
 		 * \return status of execution: True if successful, false if not.
@@ -344,7 +352,7 @@ class Hypstar
 		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 	private:
-		Hypstar(LibHypstar::linuxserial *serial);
+		Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix);
 
 		bool sendCmd(unsigned char cmd, unsigned char * pParameters, unsigned short paramLength);
 		bool sendCmd(unsigned char cmd);
@@ -364,7 +372,7 @@ class Hypstar
 //		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
 		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
-		static void printLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, va_list args);
+		static void printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
 //		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 
@@ -372,6 +380,9 @@ class Hypstar
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 		s_outgoing_packet lastOutgoingPacket;
 		e_loglevel _loglevel;
+		static e_loglevel _loglevel_static;
+		char* _log_prefix;
+		static char* _log_prefix_static;
 		unsigned short lastCaptureLongestIntegrationTime_ms;
 };
 
@@ -398,7 +409,7 @@ extern "C"
 		char hash[16];
 	};
 
-	hypstar_t *hypstar_init(const char *port);
+	hypstar_t *hypstar_init(const char *port, e_loglevel* loglevel = NULL, const char* logprefix = NULL);
 	void hypstar_close(hypstar_t *hs);
 	bool hypstar_wait_for_instrument(const char *port, float timeout_s);
 
@@ -406,6 +417,7 @@ extern "C"
 	uint64_t hypstar_get_time(hypstar_t *hs);
 	bool hypstar_set_time(hypstar_t *hs, uint64_t time);
 	void hypstar_set_loglevel(hypstar_t *hs, e_loglevel loglevel);
+	void hypstar_set_logprefix(hypstar_t *hs, const char* logprefix);
 	bool hypstar_get_hw_info(hypstar_t *hs, s_booted *target);
 	bool hypstar_get_env_log(hypstar_t *hs, unsigned char index, s_environment_log_entry *target);
 	bool hypstar_get_calibration_coefficients_basic(hypstar_t *hs, s_calibration_coefficients_unpacked *coef_target);
