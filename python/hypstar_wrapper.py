@@ -37,7 +37,9 @@ class Hypstar:
 		port = create_string_buffer(bytes(port, 'ascii'))
 		self.define_argument_types()
 		if not dummy:
-			self.handle = self.lib.hypstar_init(port, loglevel, logprefix)
+			loglevel = c_int8(loglevel)
+			logprefix = create_string_buffer(bytes(logprefix, 'ascii'))
+			self.handle = self.lib.hypstar_init(port, pointer(loglevel), logprefix)
 			if not self.handle:
 				raise IOError("Could not retrieve instrument instance!")
 			self.get_hw_info()
@@ -134,8 +136,8 @@ class Hypstar:
 			raise Exception('Missing memory slot IDs')
 		spectra = (HypstarSpectrum * (len(memory_slots)))()
 		r = self.lib.hypstar_download_spectra(self.handle, memory_slots, len(memory_slots), pointer(spectra))
-		if r != len(memory_slots):
-			raise Exception('Did not get enough spectra')
+		if r == 0:
+			raise Exception('Did not get any spectra')
 		return spectra
 
 	# currently returns size in data packets, not bytes
@@ -163,6 +165,7 @@ class Hypstar:
 		return r
 
 	def define_argument_types(self):
+		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
 		self.lib.hypstar_init.restype = c_void_p
 		self.lib.hypstar_close.argtypes = [c_void_p]
 		self.lib.hypstar_get_hw_info.argtypes = [c_void_p]

@@ -26,6 +26,7 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 {
 	hnport = serial;
 	setLoglevel(loglevel);
+	_log_prefix = NULL;
 
 	if (logprefix == NULL)
 		setLogprefix("");
@@ -80,7 +81,7 @@ Hypstar::~Hypstar()
 		// if found, return pointer to that
 		if (Hypstar::instance_holder[i].instance == this)
 		{
-			LOG_INFO("Found driver instance %p, index %d. Deleting...\n", static_cast<void*>(this), i);
+			LOG_DEBUG("Found driver instance %p, index %d. Deleting...\n", static_cast<void*>(this), i);
 			Hypstar::instance_holder.erase(Hypstar::instance_holder.begin()+i);
 		}
 	}
