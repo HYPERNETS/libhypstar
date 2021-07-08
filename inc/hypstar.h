@@ -430,7 +430,7 @@ extern "C"
 	unsigned short hypstar_acquire_spectra(hypstar_t *hs, enum e_radiometer spec, enum e_entrance mux,
 			unsigned short vnir_inttime_ms,	unsigned short swir_inttime_ms,	unsigned short scan_count, unsigned short series_time_s, s_spectrum_dataset *target, bool reuse_last_AIT_value);
 	unsigned short hypstar_capture_JPEG_image(hypstar_t *hs, bool flip, bool mirror, bool auto_focus);
-	unsigned short hypstar_download_JPEG_image(hypstar_t *hs, s_img_data_holder *target);
+	int hypstar_download_JPEG_image(hypstar_t *hs, s_img_data_holder *target);
 	bool hypstar_set_TEC_target_temperature(hypstar_t *hs, float target_temp_deg_C);
 	bool hypstar_shutdown_TEC(hypstar_t *hs);
 	bool hypstar_reboot(hypstar_t *hs);

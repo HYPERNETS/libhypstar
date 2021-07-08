@@ -2016,7 +2016,7 @@ unsigned short hypstar_capture_JPEG_image(hypstar_t *hs, bool flip, bool mirror,
 	return instance->captureJpegImage(JPG_5MP, flags, 10.0);
 }
 
-unsigned short hypstar_download_JPEG_image(hypstar_t *hs, s_img_data_holder *target)
+int hypstar_download_JPEG_image(hypstar_t *hs, s_img_data_holder *target)
 {
 	if (hs == NULL)
 	{

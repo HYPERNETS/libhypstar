@@ -147,9 +147,13 @@ class Hypstar:
 	# returns properly formatted JPEG image as a byte stream
 	def download_JPEG_image(self):
 		img = HypstarImage()
-		size = self.lib.hypstar_download_JPEG_image(self.handle, pointer(img))
-		fmt = "<{}H".format(int(size))
-		bin = struct.pack(fmt, *img.image_data_jpeg[:size])
+		dataset_size = self.lib.hypstar_download_JPEG_image(self.handle, pointer(img))
+
+		# image packet is image type (1B) + image_data (n x 2B) + CRC32 (4B)
+		# n = (dataset_size - 5) / 2
+		img_uint16_count = int((dataset_size - 5) / 2)
+		fmt = "<{}H".format(int(img_uint16_count))
+		bin = struct.pack(fmt, *img.image_data_jpeg[:img_uint16_count])
 		return bin
 
 	def set_SWIR_module_temperature(self, target_C):
