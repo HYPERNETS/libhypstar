@@ -322,6 +322,7 @@ uint64_t Hypstar::getTime(void)
 
 bool Hypstar::setTime(uint64_t time_s)
 {
+	// @TODO: repeated instantiation sends done response right away, at least with higher default baud rate
 	EXCHANGE(SET_SYSTIME, (unsigned char *)&time_s, (unsigned short)sizeof(time_s));
 	return true;
 }
@@ -330,6 +331,8 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 {
 	try
 	{
+		LOG_DEBUG("Env index requested: %d\n", index);
+		// @TODO: calculate timeout based on actual baudrate and expected data sizes + a couple of USB ticks at least
 		EXCHANGE(GET_ENV, &index, 1);
 	}
 	catch (eHypstar &e)
