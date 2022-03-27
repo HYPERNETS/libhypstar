@@ -99,6 +99,14 @@ class Hypstar
 		bool setTime(uint64_t time_s);
 
 		/**
+		 * \brief	 Fill the system message log structure with log data
+		 * \param pTarget pointer to memory region allocated for log
+		 * \param index 0-indexed reverse-order (latest=0) log index to return
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool getSystemLogEntry(struct s_log_item *pTarget, unsigned char index);
+
+		/**
 		 * \brief	 Fill the environment log structure with log data
 		 * \param envlog pointer to memory region allocated for log
 		 * \param index 0-indexed reverse-order (latest=0) log index to return
@@ -352,6 +360,8 @@ class Hypstar
 		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 	private:
+		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
+		static bool is_log_message_waiting;
 		Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix);
 
 		bool sendCmd(unsigned char cmd, unsigned char * pParameters, unsigned short paramLength);
@@ -360,7 +370,7 @@ class Hypstar
 		bool waitForDone(unsigned char cmd, const char * pCommandNameString, float timeout_s);
 		bool sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s = 1);
 		bool sendAndWaitForAckAndDone(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, float timeout_s);
-		int readData(float timeout_s = READTIMEOUT);
+		int readData(unsigned char *pRxBuf, float timeout_s = READTIMEOUT);
 		int exchange(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, float timeout_s = 0.5);
 		int getPacketedData(char cmd, unsigned char * pPacketParams, unsigned short paramLength, unsigned char * pTargetMemory, const char * pCommandNameString);
 		bool sendPacketedData(const char commandId, unsigned char * pDataSet, int datasetLength, const char *pCommandIdtring);
@@ -377,7 +387,6 @@ class Hypstar
 //		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 
 		LibHypstar::linuxserial *hnport; //serial port object
-		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 		s_outgoing_packet lastOutgoingPacket;
 		e_loglevel _loglevel;
 		static e_loglevel _loglevel_static;

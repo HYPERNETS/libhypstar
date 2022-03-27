@@ -490,6 +490,55 @@ struct __attribute__((__packed__)) s_spectrum_dataset
 	uint32_t crc32_spaceholder; // crc32 will be here if spec_length == MAX_SPEC_LENGTH, otherwise inside spec[] array
 };
 
+enum __attribute__((__packed__)) e_log_type
+{
+	LOG_INFO = 0x01,
+	LOG_ASSERT = 0x0A,
+	LOG_ERROR = 0x0E
+};
+
+enum __attribute__((__packed__)) e_subsystem {
+	COMMUNICATIONS_CONTROL = 0x01,
+	SPECTROMETER_CONTROL = 0x02,
+	LOG_HANDLER = 0x03,
+	CAMERA_CONTROL = 0x04,
+	ENV_MONITOR = 0x05,
+	TIME_HANDLER = 0x06,
+	FIRMWARE = 0x07,
+	CALIBRATION = 0x08
+};
+
+struct __attribute__((__packed__)) s_error_details
+{
+	e_log_type		error;
+	uint8_t			index;
+};
+
+struct __attribute__((__packed__)) s_error_assert {
+	char		file_name[98];
+	uint16_t	line_num;
+};
+
+struct __attribute__((__packed__)) s_error_with_details {
+	e_subsystem		subsystem;
+	uint8_t			count;
+	s_error_details	details[45];
+};
+
+
+union __attribute__((__packed__)) log_body {
+	char 					message[100];
+	s_error_assert	 		assertion;
+	s_error_with_details	indexed_errors;
+};
+
+struct __attribute__((__packed__)) s_log_item {
+	int64_t 				timestamp;
+	e_log_type				log_type;
+	uint16_t				body_length;
+	union log_body			body;
+};
+
 class Spectrum
 {
 	public:

@@ -19,8 +19,9 @@ std::vector<Hypstar::s_hypstar_instance> Hypstar::instance_holder;
 
 // set default log level
 e_loglevel Hypstar::_loglevel_static = INFO;
-
+bool Hypstar::is_log_message_waiting = false;
 char* Hypstar::_log_prefix_static = NULL;
+//unsigned char Hypstar::rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 
 Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix)
 {
@@ -35,6 +36,7 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 
 	CalculateCrcTable_CRC32();
 
+//	setLoglevel(DEBUG);
 	try {
 		getHardWareInfo();
 	}
@@ -69,6 +71,7 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d\n",
 			hw_info.instrument_serial_number, hw_info.firmware_version_major, hw_info.firmware_version_minor, hw_info.firmware_version_revision,
 			hw_info.mcu_hardware_version, hw_info.psu_hardware_version);
+
 }
 
 //destructor
@@ -157,7 +160,7 @@ bool Hypstar::reboot(void)
 	sendCmd(REBOOT);
 	try
 	{
-		readData(timeout_s);
+		readData(rxbuf, timeout_s);
 	}
 	catch (eHypstar &)
 	{
@@ -327,6 +330,28 @@ bool Hypstar::setTime(uint64_t time_s)
 	return true;
 }
 
+bool Hypstar::getSystemLogEntry(struct s_log_item *pTarget, unsigned char index)
+{
+	// do raw requests to avoid overwriting global rxBuffer
+	unsigned char logRxBuf[200];
+
+	try
+	{
+		sendCmd(GET_LOG);
+		readData(logRxBuf, 1);
+		LOG_DEBUG("SysLog index requested: %d\n", index);
+		// @TODO: calculate timeout based on actual baudrate and expected data sizes + a couple of USB ticks at least
+//		EXCHANGE(GET_LOG, &index, 1);
+		memcpy(pTarget, (logRxBuf + 3), sizeof(struct s_log_item));
+	}
+	catch (eHypstar &e)
+	{
+		LOG_ERROR("Failed to get SysLog\n");
+		return false;
+	}
+	return true;
+}
+
 bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, unsigned char index)
 {
 	try
@@ -455,7 +480,7 @@ bool Hypstar::setBaudRate(e_baudrate baudRate)
 
 		/* switch terminal baudrate and wait for DONE packet from the instrument */
 		hnport->setBaud((int)baudRate);
-		readData(1.0); // DONE
+		readData(rxbuf, 1.0); // DONE
 
 		if ((rxbuf[0] != DONE) || (rxbuf[3] != SET_BAUD))
 		{
@@ -722,7 +747,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 				{
 					try
 					{
-						readData(timeout_s);
+						readData(rxbuf, timeout_s);
 					}
 					catch (ePacketLengthMismatch &e)
 					{
@@ -1185,6 +1210,7 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
 {
 	int count = 0, length = 0;
+
 //	try
 //	{
 		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE
@@ -1200,6 +1226,12 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 		}
 
 		length = *((unsigned short*)(pBuf + 1));
+		if (length & 0x8000) {
+			is_log_message_waiting = true;
+			// clear bit, we don't plan to have THAT large packets
+			length = length & ~(0x8000);
+			pBuf[2] = pBuf[2] & ~(0x80);
+		}
 
 		while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE))
 		{
@@ -1212,7 +1244,9 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 //		throw eHypstar();
 //	}
 
-	return checkPacketLength(pBuf, length, count);
+	int retval = checkPacketLength(pBuf, length, count);
+
+	return retval;
 }
 
 bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel)
@@ -1244,7 +1278,7 @@ bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length, e_logle
 	return true;
 }
 
-int Hypstar::readData(float timeout_s)
+int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 {
 	int count = 0;
 	unsigned int i;
@@ -1256,17 +1290,17 @@ int Hypstar::readData(float timeout_s)
 	LOG_DEBUG("readData timeout_sec = %.3f\n", timeout_s);
     auto t1 = std::chrono::high_resolution_clock::now();
 
-	count = readPacket(hnport, rxbuf, timeout_s);
+	count = readPacket(hnport, pRxBuf, timeout_s);
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 
 	LOG_DEBUG("Got %d bytes in %d ms\n", count, duration);
-	logBinPacket("<<", rxbuf, count);
+	logBinPacket("<<", pRxBuf, count);
 
 	for (i = 0; i < (sizeof(packet_identifiers) / sizeof(packet_identifiers[0])); i++)
 	{
-		if(rxbuf[0] == packet_identifiers[i])
+		if(pRxBuf[0] == packet_identifiers[i])
 		{
 			good_id = true;
 			break;
@@ -1275,24 +1309,24 @@ int Hypstar::readData(float timeout_s)
 
 	if (!good_id)
 	{
-		LOG_ERROR("Unknown packet identifier 0x%.2X\n", rxbuf[0]);
+		LOG_ERROR("Unknown packet identifier 0x%.2X\n", pRxBuf[0]);
 		throw eBadID();
 	}
 
-	checkPacketCRC(rxbuf, count);
+	checkPacketCRC(pRxBuf, count);
 	// check response code
-	if (rxbuf[0] == NAK)
+	if (pRxBuf[0] == NAK)
 	{
 		// check for CRC error 0xE0 first
 		// in the case of CRC error the packet received and returned by the instrument
 		// is faulty and decoding it is meaningless
-		if (rxbuf[count - 2] == BAD_CRC)
+		if (pRxBuf[count - 2] == BAD_CRC)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - bad crc\n", BAD_CRC);
 			char out[count*3 +3];
 			for (int i = 0; i < count; i++)
 			{
-				sprintf(&out[i*3], "%.2X ", rxbuf[i]);
+				sprintf(&out[i*3], "%.2X ", pRxBuf[i]);
 			}
 			LOG_ERROR("%s %s\n", "<<", out);
 			throw eBadTxCRC();
@@ -1301,7 +1335,7 @@ int Hypstar::readData(float timeout_s)
 		// check for too_short error 0xE4 next
 		// in the case of too_short error the packet received and returned by the instrument
 		// is shorter than declared in the header and decoding it is meaningless
-		if (rxbuf[count - 2] == TOO_SHORT)
+		if (pRxBuf[count - 2] == TOO_SHORT)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - too short\n", TOO_SHORT);
 			throw eBadTxCRC();
@@ -1311,31 +1345,31 @@ int Hypstar::readData(float timeout_s)
 		// the original command
 		// throw eBadTxCRC because the NOT_IMPLEMENTED error is occasionally
 		// returned to command that is actually implemented (comms error with matching crc?)
-		if (rxbuf[count - 2] == NOT_IMPLEMENTED)
+		if (pRxBuf[count - 2] == NOT_IMPLEMENTED)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - not implemented\n", NOT_IMPLEMENTED);
 			throw eBadTxCRC();
 		}
 
-		if (rxbuf[count - 2] == CAM_ERROR_TIMEOUT)
+		if (pRxBuf[count - 2] == CAM_ERROR_TIMEOUT)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - camera capture timeout (too dark?)\n", CAM_ERROR_TIMEOUT);
 			throw eBadResponse();
 		}
 
 		// Response packet: response code(1), packet_length(2), cmd_code(1), cmd_packet_length(2), rest_of_cmd_packet(...), error_code(1)
-		cmd_len = *((unsigned short*)(rxbuf + 4));
+		cmd_len = *((unsigned short*)(pRxBuf + 4));
 
 
 		unsigned short errcode2, parm2, n_errors;
 		// AIT command does not send whole packet body, just the CMD identifier
-		if (rxbuf[3] == CAPTURE_SPEC)
+		if (pRxBuf[3] == CAPTURE_SPEC)
 		{
 			errcode = BAD_PARM;
-			errcode2 = rxbuf[9];
+			errcode2 = pRxBuf[9];
 			unsigned short vis_val, swir_val;
-			vis_val = *(unsigned short*) &rxbuf[10];
-			swir_val = *(unsigned short*) &rxbuf[12];
+			vis_val = *(unsigned short*) &pRxBuf[10];
+			swir_val = *(unsigned short*) &pRxBuf[12];
 			parm2 = vis_val != 0 ? vis_val : swir_val;
 			n_errors = 1;
 		}
@@ -1347,7 +1381,7 @@ int Hypstar::readData(float timeout_s)
 		}
 		else
 		{
-			errcode = rxbuf[3 + cmd_len];
+			errcode = pRxBuf[3 + cmd_len];
 			n_errors = (count - PACKET_DECORATORS_TOTAL_SIZE - lastOutgoingPacket.length -1) / 2;
 		}
 
@@ -1369,10 +1403,10 @@ int Hypstar::readData(float timeout_s)
 			error_ss << "bad parameters:\n";
 			for (unsigned short j = 0; j < n_errors; j++)
 			{
-				if (rxbuf[3] != CAPTURE_SPEC)
+				if (pRxBuf[3] != CAPTURE_SPEC)
 				{
-					errcode2 = rxbuf[3 + cmd_len + 1 + 2 * j];
-					parm2 = rxbuf[3 + cmd_len + 1 + 2 * j + 1];
+					errcode2 = pRxBuf[3 + cmd_len + 1 + 2 * j];
+					parm2 = pRxBuf[3 + cmd_len + 1 + 2 * j + 1];
 				}
 
 				switch(errcode2)
@@ -1414,7 +1448,7 @@ int Hypstar::readData(float timeout_s)
 			LOG_ERROR("too short\n");
 			break;
 		case NOT_IMPLEMENTED:
-			LOG_ERROR("command 0x%.2X not implemented\n", rxbuf[3]);
+			LOG_ERROR("command 0x%.2X not implemented\n", pRxBuf[3]);
 			break;
 		case BAD_STATE:
 			LOG_ERROR("instrument is in firmware update mode\n");
@@ -1429,11 +1463,26 @@ int Hypstar::readData(float timeout_s)
 		}
 
 		for (int i = 0; i < count; i++)
-			error_ss << " " << std::hex << std::setfill('0') << std::uppercase << std::setw(2) << (unsigned short) rxbuf[i];
+			error_ss << " " << std::hex << std::setfill('0') << std::uppercase << std::setw(2) << (unsigned short) pRxBuf[i];
 
 		LOG_ERROR("%s\n", error_ss.str().c_str());
 
 		throw eBadResponse();
+	}
+
+	if (is_log_message_waiting)
+	{
+		is_log_message_waiting = false;
+		s_log_item l;
+		getSystemLogEntry(&l, 0);
+		if (l.log_type == LOG_ERROR)
+		{
+			LOG_ERROR("SYSLOG ERROR [%lu]: %s\n", l.timestamp, l.body.message);
+		}
+		else
+		{
+			LOG_DEBUG("SYSLOG DEBUG [%lu]: %s\n", l.timestamp, l.body.message);
+		}
 	}
 
 	return count;
@@ -1462,7 +1511,7 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 
 			try
 			{
-				receivedByteCount = readData(timeout_s);
+				receivedByteCount = readData(rxbuf, timeout_s);
 			}
 			catch (eBadTxCRC &e)
 			{
@@ -1656,7 +1705,7 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 	{
 		try
 		{
-			receivedByteCount = readData(timeout_s);
+			receivedByteCount = readData(rxbuf, timeout_s);
 		}
 		catch (LibHypstar::eSerialReadTimeout &)
 		{
