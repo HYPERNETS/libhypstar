@@ -216,6 +216,7 @@ struct __attribute__((__packed__)) s_booted
 	bool power_monitor_1_available: 1;
 	bool power_monitor_2_available: 1;
 	bool is_1MB_device: 1;
+	bool isolated_adc: 1;
 	uint16_t vnir_pixel_count;
 	uint16_t swir_pixel_count;
 };

@@ -330,6 +330,12 @@ bool Hypstar::setTime(uint64_t time_s)
 	return true;
 }
 
+bool Hypstar::enableVM(bool enable)
+{
+	EXCHANGE(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t));
+	return true;
+}
+
 bool Hypstar::getSystemLogEntry(struct s_log_item *pTarget, unsigned char index)
 {
 	// do raw requests to avoid overwriting global rxBuffer
@@ -474,6 +480,7 @@ void Hypstar::convertRawAccelerometerDataToMsFromEnvLog(struct s_environment_log
 
 bool Hypstar::setBaudRate(e_baudrate baudRate)
 {
+	// @TODO: check for BR validity
 	try
 	{
 		SEND_AND_WAIT_FOR_ACK(SET_BAUD, (unsigned char *)&baudRate, (unsigned short)sizeof(baudRate));
@@ -2122,6 +2129,20 @@ bool hypstar_send_calibration_coefficients(hypstar_t *hs, s_extended_calibration
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
 	return instance->sendCalibrationCoefficients(pNewExternalCalibrationCoeficients);
+}
+
+bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable)
+{
+	if (hs == NULL)
+	{
+		return 0;
+	}
+	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
+	return instance->enableVM((bool) enable);
+}
+
+bool hypstar_VM_set_current(hypstar_t *hs, float current) {
+	return true;
 }
 
 bool hypstar_save_calibration_coefficients(hypstar_t *hs)

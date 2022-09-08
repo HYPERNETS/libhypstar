@@ -1,6 +1,7 @@
 import io
 import unittest
 
+import time
 from PIL import Image
 
 from .data_structs.hardware_info import HypstarSupportedBaudRates
@@ -260,6 +261,11 @@ class CtypeTests(unittest.TestCase):
 
 	def test_register_callback(self):
 		self.radiometer.register_callback()
+
+	def test_enabling_vm(self):
+		self.radiometer.VM_enable(True)
+		time.sleep(3)
+		self.radiometer.VM_enable(False)
 
 
 if __name__ == '__main__':

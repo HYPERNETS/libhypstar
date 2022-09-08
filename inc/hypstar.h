@@ -99,6 +99,13 @@ class Hypstar
 		bool setTime(uint64_t time_s);
 
 		/**
+		 * \brief	 Turn on/off Validation Module light source
+		 * \param enable true to turn on, false to turn off
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool enableVM(bool enable);
+
+		/**
 		 * \brief	 Fill the system message log structure with log data
 		 * \param pTarget pointer to memory region allocated for log
 		 * \param index 0-indexed reverse-order (latest=0) log index to return
@@ -447,7 +454,8 @@ extern "C"
 	bool hypstar_send_calibration_coefficients(hypstar_t *hs, s_extended_calibration_coefficients *pNewExternalCalibrationCoeficients);
 	bool hypstar_save_calibration_coefficients(hypstar_t *hs);
 	bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integration_time_adjustment_status *), int paramA, int paramB);
-
+	bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable);
+	bool hypstar_VM_set_current(hypstar_t *hs, float current);
 	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 

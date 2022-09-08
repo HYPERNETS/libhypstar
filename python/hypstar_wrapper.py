@@ -168,6 +168,18 @@ class Hypstar:
 			raise Exception("Did not succeed in shutting down SWIR TEC")
 		return r
 
+	def VM_enable(self, enable:bool):
+		r = self.lib.hypstar_VM_enable(self.handle, 1 if enable == True else 0)
+		if not r:
+			raise Exception("Did not succeed in switching VM")
+		return r
+
+	def VM_set_current(self, current:float):
+		r = self.lib.hypstar_VM_set_current(self.handle, current)
+		if not r:
+			raise Exception("Did not succeed in changing VM current!")
+		return r
+
 	def define_argument_types(self):
 		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
 		self.lib.hypstar_init.restype = c_void_p
@@ -191,6 +203,8 @@ class Hypstar:
 		self.lib.hypstar_download_JPEG_image.argtypes = [c_void_p, c_void_p]
 		self.lib.hypstar_set_TEC_target_temperature.argtypes = [c_void_p, c_float]
 		self.lib.hypstar_shutdown_TEC.argtypes = [c_void_p]
+		self.lib.hypstar_VM_enable.argtypes = [c_void_p, c_uint8]
+		self.lib.hypstar_VM_set_current.argtypes = [c_void_p, c_float]
 
 	def callback_test_fn(self, it_status):
 		print(type(it_status))
