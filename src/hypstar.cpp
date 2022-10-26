@@ -77,8 +77,9 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 //destructor
 Hypstar::~Hypstar()
 {
+	LOG_INFO("Called destructor!\n");
 	setBaudRate(B_115200);
-	// destructor has to find and remove own entry from the instance_holder vector
+//	 destructor has to find and remove own entry from the instance_holder vector
 	for (uint i = 0; i < Hypstar::instance_holder.size(); i++)
 	{
 		// if found, return pointer to that
@@ -1216,7 +1217,7 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 
 int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
 {
-	int count = 0, length = 0;
+	uint16_t count = 0, length = 0;
 
 //	try
 //	{
@@ -1233,6 +1234,13 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 		}
 
 		length = *((unsigned short*)(pBuf + 1));
+
+		// at higher baud rates instrument responds with error on partial packets mis-decoded
+		// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
+		if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
+			throw ePacketLengthMismatch(length, length, (char *)pBuf);
+		}
+
 		if (length & 0x8000) {
 			is_log_message_waiting = true;
 			// clear bit, we don't plan to have THAT large packets
@@ -1297,7 +1305,13 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	LOG_DEBUG("readData timeout_sec = %.3f\n", timeout_s);
     auto t1 = std::chrono::high_resolution_clock::now();
 
-	count = readPacket(hnport, pRxBuf, timeout_s);
+    try {
+    	count = readPacket(hnport, pRxBuf, timeout_s);
+    }
+    catch (ePacketLengthMismatch &e) {
+    	LOG_DEBUG("Got garbage (0x%04X), wrong baud rate?\n", e.lengthInPacket);
+    	throw eBadResponse();
+    }
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
