@@ -344,9 +344,9 @@ bool Hypstar::getSystemLogEntry(struct s_log_item *pTarget, unsigned char index)
 
 	try
 	{
+		LOG_DEBUG("SysLog index requested: %d\n", index);
 		sendCmd(GET_LOG);
 		readData(logRxBuf, 1);
-		LOG_DEBUG("SysLog index requested: %d\n", index);
 		// @TODO: calculate timeout based on actual baudrate and expected data sizes + a couple of USB ticks at least
 //		EXCHANGE(GET_LOG, &index, 1);
 		memcpy(pTarget, (logRxBuf + 3), sizeof(struct s_log_item));
@@ -1310,6 +1310,7 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
     }
     catch (ePacketLengthMismatch &e) {
     	LOG_DEBUG("Got garbage (0x%04X), wrong baud rate?\n", e.lengthInPacket);
+    	logBinPacket("<<", pRxBuf, count);
     	throw eBadResponse();
     }
 
@@ -1498,11 +1499,11 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		getSystemLogEntry(&l, 0);
 		if (l.log_type == LOG_ERROR)
 		{
-			LOG_ERROR("SYSLOG ERROR [%lu]: %s\n", l.timestamp, l.body.message);
+			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %s\n", l.timestamp, l.body.message);
 		}
 		else
 		{
-			LOG_DEBUG("SYSLOG DEBUG [%lu]: %s\n", l.timestamp, l.body.message);
+			LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %s\n", l.timestamp, l.body.message);
 		}
 	}
 

@@ -13,6 +13,9 @@
 #ifndef LIBHYPSTAR_H
 #define LIBHYPSTAR_H
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include <stdio.h>
 #include <libhypstar_linuxserial.h>
 #include <string>
