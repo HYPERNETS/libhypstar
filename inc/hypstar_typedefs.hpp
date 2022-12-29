@@ -536,7 +536,8 @@ union __attribute__((__packed__)) log_body {
 struct __attribute__((__packed__)) s_log_item {
 	int64_t 				timestamp;
 	e_log_type				log_type;
-	uint16_t				body_length;
+	bool					new_message	:1;
+	uint16_t				body_length :15;
 	union log_body			body;
 };
 

@@ -388,7 +388,7 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 	 * PM2 Ch1: 12V SWIR; Ch2: 12V MUX; Ch3: 5V VNIR; Ch4: 12V_total
 	 */
 
-	if (hw_info.psu_hardware_version > 3) {
+	if ((hw_info.psu_hardware_version > 3) || (hw_info.firmware_version_minor >= 17)) {
 		// map directly, since full-length (including 0 values) is provided by the instrument
 		// also all the new hardware should have newer firmware anyway
 		memcpy(pTarget, (rxbuf + 3), sizeof(struct s_environment_log_entry));
@@ -1499,11 +1499,11 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		getSystemLogEntry(&l, 0);
 		if (l.log_type == LOG_ERROR)
 		{
-			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %s\n", l.timestamp, l.body.message);
+			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
 		}
 		else
 		{
-			LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %s\n", l.timestamp, l.body.message);
+			LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
 		}
 	}
 
