@@ -98,6 +98,7 @@
 #define FW_DATA 0xBF
 
 // status packets 0xC?
+#define VM_STATUS 0xC7
 #define AUTOINT_STATUS 0xC8
 #define RESEND 0xC9
 #define ACK 0xCA
@@ -110,10 +111,13 @@
 #define VM_ON 0xD0
 #define SEL_VM_SRC 0xD1
 #define VM_SRC_ON 0xD2
+#define VM_MEASURE 0xD3
 #define CAPTURE_VM_IMG 0xD8
 
 #define GET_VM_IMG 0xD9
 #define PASS_TO_VM 0xDA
+#define VM_START_FW_UPLOAD 0xDE
+#define VM_FIRMWARE_DATA 0xDF
 
 // error codes 0xE?
 #define BAD_CRC 0xE0
@@ -177,7 +181,8 @@ class eBadInstrumentState: public eHypstar {};
 
 // received packet must start with one of these identifiers
 const uint8_t packet_identifiers[] = {
-		AUTOINT_STATUS
+		VM_STATUS
+		,AUTOINT_STATUS
 		,ACK
 		,DONE
 		,IMG_DATA
@@ -217,6 +222,10 @@ struct __attribute__((__packed__)) s_booted
 	bool power_monitor_2_available: 1;
 	bool is_1MB_device: 1;
 	bool isolated_adc: 1;
+	bool vm_available: 1;
+	uint8_t vm_firmware_version_major;
+	uint8_t vm_firmware_version_minor;
+	uint8_t vm_firmware_version_revision;
 	uint16_t vnir_pixel_count;
 	uint16_t swir_pixel_count;
 };
@@ -241,6 +250,7 @@ struct s_available_hardware
 	bool humidity_sensor;
 	bool pressure_sensor;
 	bool swir_tec_module;
+	bool validation_module;
 };
 
 struct __attribute__((__packed__)) s_calibration_coefficients_raw
@@ -444,11 +454,27 @@ enum e_radiometer
 	BOTH = 0x03
 };
 
-enum e_entrance
+enum __attribute__((__packed__)) e_entrance
 {
 	DARK = 0x00,
 	RADIANCE = 0x01,
 	IRRADIANCE = 0x02
+};
+
+enum __attribute__((__packed__)) e_vm_light_source
+{
+	VM_LIGHT_NONE				= 0x00,
+	VM_LIGHT_VIS				= 0x01,
+	VM_LIGHT_1300nm				= 0x02,
+	VM_LIGHT_1550nm				= 0x04
+};
+
+struct __attribute__((__packed__)) s_vm_measurement_request_packet
+{
+	uint8_t						entrance;
+	uint8_t						light_source;
+	unsigned short				integration_time;
+	float						current;
 };
 
 struct __attribute__((__packed__)) s_automatic_integration_time_adjustment_status
@@ -583,5 +609,13 @@ enum e_loglevel
 struct s_outgoing_packet {
 	unsigned char data[RX_BUFFER_SIZE];
 	int length;
+};
+
+struct __attribute__((__packed__)) VM_Status_t {
+	float						temp_setpoint;
+	float						temp_current;
+	float						temp_sink;
+	float						led_current;
+	float						led_voltage;
 };
 #endif

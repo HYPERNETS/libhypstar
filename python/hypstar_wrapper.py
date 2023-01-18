@@ -2,12 +2,12 @@ import struct
 from ctypes import *
 from enum import IntEnum
 
-from .data_structs.hardware_info import BootedPacketStruct, HypstarSupportedBaudRates
-from .data_structs.calibration_coefficients import CalibrationCoefficients, ExtendedCalibrationCoefficients
-from .data_structs.environment_log import EnvironmentLogEntry
-from .data_structs.image import HypstarImage
-from .data_structs.spectrum_raw import RadiometerEntranceType, RadiometerType, HypstarSpectrum
-from .data_structs.varia import HypstarAutoITStatus
+from data_structs.hardware_info import BootedPacketStruct, HypstarSupportedBaudRates
+from data_structs.calibration_coefficients import CalibrationCoefficients, ExtendedCalibrationCoefficients
+from data_structs.environment_log import EnvironmentLogEntry
+from data_structs.image import HypstarImage
+from data_structs.spectrum_raw import RadiometerEntranceType, RadiometerType, HypstarSpectrum
+from data_structs.varia import HypstarAutoITStatus, ValidationModuleLightType
 
 
 class HypstarLogLevel(IntEnum):
@@ -180,6 +180,17 @@ class Hypstar:
 			raise Exception("Did not succeed in changing VM current!")
 		return r
 
+	# set current to 0 to have automatic VIS Current of ~0.6A for RADIANCE and ~1.1A for IRRADIANCE
+	# for SWIR default (and MAX) is 0.1A
+	# values are actually in volts with coversion ratio of ~2.2V/A
+	# integration time is for respective light source: if source == VIS, it is for VNIR, if source is SWIR*, it is for SWIR radiometer
+	def VM_measure(self, entrance, source, integration_time, current=0):
+		spectrum = HypstarSpectrum()
+		r = self.lib.hypstar_VM_measure(self.handle, entrance, source, integration_time, current, pointer(spectrum))
+		if not r:
+			raise Exception("Did not succeed in measuring VM light!")
+		return spectrum
+
 	def define_argument_types(self):
 		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
 		self.lib.hypstar_init.restype = c_void_p
@@ -205,6 +216,7 @@ class Hypstar:
 		self.lib.hypstar_shutdown_TEC.argtypes = [c_void_p]
 		self.lib.hypstar_VM_enable.argtypes = [c_void_p, c_uint8]
 		self.lib.hypstar_VM_set_current.argtypes = [c_void_p, c_float]
+		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p]
 
 	def callback_test_fn(self, it_status):
 		print(type(it_status))

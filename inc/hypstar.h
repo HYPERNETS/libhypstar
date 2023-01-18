@@ -339,6 +339,13 @@ class Hypstar
 		bool sendNewFirmwareData(std::string filePath);
 
 		/**
+		 * \brief	Sends new VM firmware data to the instrument.
+		 * \param filePath path to the binary file to send to the instrument
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool sendNewVMFirmwareData(std::string filePath);
+
+		/**
 		 * \brief	Checks for dataset checksum and aves previously sent new firmware binary image to the instrument flash.
 		 * Must be called in flash write mode.
 		 * \return status of execution: True if successful, false if not.
@@ -352,6 +359,16 @@ class Hypstar
 		 */
 		bool switchFirmwareSlot(void);
 
+		/**
+		 * \brief	Sets up validation module for measurement and captures a series of spectra
+		 * \param entrance sets default output power for given entrance
+		 * \param source selects light source: VISible, SWIR 1350nm or SWIR 1500nm
+		 * \param integration_time sets measurement integration time
+		 * \param current overrides default output power
+		 * \param pSpectraTarget is target array pointer where captured spectra are to be saved
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
 		/********************* END OF UNSAFE **********************/
 
 		/* General information about the instrument */
@@ -459,6 +476,7 @@ extern "C"
 	bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integration_time_adjustment_status *), int paramA, int paramB);
 	bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable);
 	bool hypstar_VM_set_current(hypstar_t *hs, float current);
+	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
 	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 

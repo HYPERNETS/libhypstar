@@ -4,11 +4,12 @@ import unittest
 import time
 from PIL import Image
 
-from .data_structs.hardware_info import HypstarSupportedBaudRates
-from .data_structs.spectrum_raw import RadiometerType, RadiometerEntranceType
-from .hypstar_wrapper import Hypstar, HypstarLogLevel, wait_for_instrument
+from data_structs.varia import ValidationModuleLightType
+from data_structs.hardware_info import HypstarSupportedBaudRates
+from data_structs.spectrum_raw import RadiometerType, RadiometerEntranceType
+from hypstar_wrapper import Hypstar, HypstarLogLevel, wait_for_instrument
 
-serial_port = '/dev/ttyUSB0'
+serial_port = '/dev/ttyUSB1'
 
 
 class CtypeTestsNoInit(unittest.TestCase):
@@ -267,6 +268,12 @@ class CtypeTests(unittest.TestCase):
 		time.sleep(3)
 		self.radiometer.VM_enable(False)
 
+	def test_VM_capture(self):
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 100, 0.8)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		s = ret_val.convert_to_spectrum_class()  # Type: Spectrum
+		s.plot()
 
 if __name__ == '__main__':
 	unittest.main()

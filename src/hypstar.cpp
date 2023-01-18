@@ -66,6 +66,7 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	available_hardware.humidity_sensor = hw_info.humidity_sensor_available;
 	available_hardware.pressure_sensor = hw_info.pressure_sensor_available;
 	available_hardware.swir_tec_module = hw_info.swir_tec_module_available;
+	available_hardware.validation_module = hw_info.vm_available;
 
 	setTime(time(NULL));
 	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d\n",
@@ -202,10 +203,10 @@ bool Hypstar::getHardWareInfo(void)
 		hw_info.swir_pixel_count = 0;
 	}
 
-	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d\n",
+	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d\n",
 			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.vnir_pixel_count, hw_info.swir_module_available, hw_info.swir_pixel_count, hw_info.optical_multiplexer_available, hw_info.camera_available,
 			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available,
-			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device);
+			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device, hw_info.isolated_adc, hw_info.vm_available);
 
 	return true;
 }
@@ -334,6 +335,67 @@ bool Hypstar::setTime(uint64_t time_s)
 bool Hypstar::enableVM(bool enable)
 {
 	EXCHANGE(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t));
+	return true;
+}
+
+bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
+	enableVM(true);
+	sleep(0.5);
+	// request measurement
+	VM_Status_t *vm_status;
+	s_vm_measurement_request_packet request = {
+			.entrance = entrance,
+			.light_source = source,
+			.integration_time = integration_time,
+			.current = current,
+	};
+
+	EXCHANGE(VM_MEASURE, (unsigned char *) &request, sizeof(s_vm_measurement_request_packet));
+	while(true)
+	{
+		try
+			{
+				readData(rxbuf, 20);
+			}
+//			catch (ePacketLengthMismatch &e)
+//			{
+//				LOG_ERROR("Bad packet length!\n");
+//			}
+//			catch (LibHypstar::eSerialReadTimeout &e){
+//				LOG_ERROR("Serial timeout exception?\n");
+//			}
+//			catch (LibHypstar::eSerialSelectInterrupted &e) {
+//				LOG_ERROR("Serial select interrupted\n");
+//			}
+//			catch (eBadResponse &e) {
+//				// probably capture timeout, rethrow
+//				throw e;
+//			}
+			catch (eHypstar &e)
+			{
+				LOG_ERROR("Something else?\n");
+			}
+			if ((rxbuf[0] == DONE) && (rxbuf[3] == VM_MEASURE))
+			{
+				break;
+			}
+			else if (rxbuf[0] != VM_STATUS) {
+				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+				hnport->emptyInputBuf();
+//				sendCmd(RESEND);
+				continue;
+			}
+			if (rxbuf[0] == VM_STATUS) {
+				vm_status = (VM_Status_t *) &rxbuf[3];
+				LOG_INFO("VM setpoint: %2.2f, VM temperature: %2.2f, VM sink temp: %2.2f, current setting: %2.1f, voltage: %2.4f V\n", vm_status->temp_setpoint, vm_status->temp_current, vm_status->temp_sink, vm_status->led_current, vm_status->led_voltage);
+			}
+	}
+	e_radiometer radiometer = VM_LIGHT_VIS ? VNIR : SWIR;
+	unsigned short vit = VM_LIGHT_VIS ? integration_time : 0;
+	unsigned short sit = VM_LIGHT_VIS ? 0 : integration_time;
+
+	acquireSpectra(radiometer, entrance, vit, sit, 1, 0, pSpectraTarget, false);
+	enableVM(false);
 	return true;
 }
 
@@ -1045,6 +1107,31 @@ bool Hypstar::getFirmwareInfo(void)
 	return true;
 }
 
+bool Hypstar::sendNewVMFirmwareData(std::string filePath) {
+	std::ifstream binFile(filePath.c_str(), std::ios::in | std::ios::binary);
+	if (!binFile) {
+		LOG_ERROR("No firmware file in path given\n");
+		return false;
+	}
+	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(binFile), {});
+
+	binFile.close();
+
+	int crc32_buflen = ((buffer.size()) % 4) ?
+			(buffer.size()) + 4 - ((buffer.size() ) % 4) :
+			(buffer.size());
+
+	uint32_t calc_crc32 = Compute_CRC32_BE(crc32_buflen, (unsigned char*)buffer.data());
+	std::vector<unsigned char> crcvec(((unsigned char*)&calc_crc32), ((unsigned char*)&calc_crc32)+4);
+	buffer.insert(buffer.end(), crcvec.begin(), crcvec.end());
+	LOG_DEBUG("Firmware buffer length with CRC: %lu, CRC: %08X, in buf: %08X\n", buffer.size(), calc_crc32, *(uint32_t*)&buffer[buffer.size()-4]);
+
+	unsigned int size = buffer.size();
+	// notify the instrument about length of our new firmware
+	SEND_AND_WAIT_FOR_ACK(VM_START_FW_UPLOAD, (unsigned char *)&size, 4);
+	return SEND_PACKETED_DATA(VM_FIRMWARE_DATA, (unsigned char *) buffer.data(), size);
+}
+
 bool Hypstar::sendNewFirmwareData(std::string filePath) {
 	std::ifstream binFile(filePath.c_str(), std::ios::in | std::ios::binary);
 	if (!binFile) {
@@ -1700,9 +1787,9 @@ bool Hypstar::sendAndWaitForAcknowledge(unsigned char cmd, unsigned char* pPacke
 
 	try
 	{
-		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString);
+		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString, 2);
 
-		if ((rxbuf[0] != ACK) || (rxbuf[3] != cmd))
+		if ((rxbuf[0] != ACK))
 		{
 			logBytesRead(receivedByteCount, "ACK", pCommandNameString);
 			return false;
@@ -2216,4 +2303,14 @@ struct s_libhypstar_version getLibHypstarVersion(void)
 	strncpy(libver.hash, DVER_HASH, sizeof(libver.hash));
 
 	return libver;
+}
+
+bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
+	if (hs == NULL)
+	{
+		return 0;
+	}
+	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
+	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget);
+
 }
