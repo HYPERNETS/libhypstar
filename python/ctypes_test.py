@@ -269,9 +269,9 @@ class CtypeTests(unittest.TestCase):
 		self.radiometer.VM_enable(False)
 
 	def test_VM_capture(self):
-		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 100, 0.8)
+		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 100, 0.8)
 		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
-		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
 		s = ret_val.convert_to_spectrum_class()  # Type: Spectrum
 		s.plot()
 
