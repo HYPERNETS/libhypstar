@@ -45,10 +45,14 @@ class BootedPacketStruct(Structure):
 		("power_monitor_1_available", c_uint16, 1),
 		("power_monitor_2_available", c_uint16, 1),
 		("is_1MB_device", c_uint16, 1),
+		("isolated_adc", c_uint16, 1),
+		("vm_available", c_uint16, 1),
 		("dummy2", c_uint16, 1),
 		("dummy3", c_uint16, 1),
-		("dummy4", c_uint16, 1),
-		("dummy5", c_uint16, 1),
+		("vm_firmware_version_major", c_uint8),
+		("vm_firmware_version_minor", c_uint8),
+		("vm_firmware_version_revision", c_uint8),
+		("vm_serial_number", c_uint32),
 		("vnir_pixel_count", c_uint16),
 		("swir_pixel_count", c_uint16),
 	]
@@ -73,6 +77,10 @@ class BootedPacketStruct(Structure):
 			   "Power monitor 1: {}\n" \
 			   "Power monitor 2: {}\n" \
 			   "1MB flash device: {}\n" \
+			   "isolated ADC: {}\n" \
+			   "VM: {}\n" \
+			   "VM FW version: {}.{}.{}\n" \
+			   "VM S/N: {}\n" \
 			   "VNIR pixel count: {}\n" \
 			   "SWIR pixel count: {}".format(
 			   self.firmware_version_major, self.firmware_version_minor, self.firmware_version_revision, hex(self.instrument_serial_number),
@@ -81,4 +89,6 @@ class BootedPacketStruct(Structure):
 				self.vnir_module_available, self.swir_module_available, self.optical_multiplexer_available, self.camera_available,
 				self.accelerometer_available, self.humidity_sensor_available, self.pressure_sensor_available,
 				self.swir_tec_module_available, self.sd_card_available, self.power_monitor_1_available, self.power_monitor_2_available,
-				self.is_1MB_device, self.vnir_pixel_count, self.swir_pixel_count)
+				self.is_1MB_device, self.isolated_adc, self.vm_available,
+				self.vm_firmware_version_major,self.vm_firmware_version_minor, self.vm_firmware_version_revision, self.vm_serial_number,
+				self.vnir_pixel_count, self.swir_pixel_count)
