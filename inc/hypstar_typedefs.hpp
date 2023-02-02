@@ -116,6 +116,7 @@
 
 #define GET_VM_IMG 0xD9
 #define PASS_TO_VM 0xDA
+#define VM_CAL_DATA 0xDC
 #define VM_START_FW_UPLOAD 0xDE
 #define VM_FIRMWARE_DATA 0xDF
 
@@ -226,6 +227,7 @@ struct __attribute__((__packed__)) s_booted
 	uint8_t vm_firmware_version_major;
 	uint8_t vm_firmware_version_minor;
 	uint8_t vm_firmware_version_revision;
+	uint32_t vm_serial_number;
 	uint16_t vnir_pixel_count;
 	uint16_t swir_pixel_count;
 };
@@ -269,6 +271,7 @@ struct s_calibration_coefficients_unpacked
 	int16_t accelerometer_horizontal_reference[3];
 };
 
+
 struct __attribute__((__packed__)) s_extended_calibration_coefficients
 {
 	uint32_t instrument_serial_number;
@@ -283,6 +286,21 @@ struct __attribute__((__packed__)) s_extended_calibration_coefficients
 	float swir_coefficients_L[256];
 	float swir_coefficients_E[256];
 	uint32_t crc32;
+};
+
+struct __attribute__((__packed__)) s_vm_calibration_coefficients
+{
+	uint32_t vm_serial_number;
+	uint16_t calibration_year;
+	uint8_t calibration_month;
+	uint8_t calibration_day;
+	uint32_t crc32;
+};
+
+enum e_cal_coefficient_type
+{
+	CAL_MM = 0x01,
+	CAL_VM = 0x02,
 };
 
 struct __attribute__((__packed__)) s_power_monitor_raw

@@ -69,9 +69,10 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	available_hardware.validation_module = hw_info.vm_available;
 
 	setTime(time(NULL));
-	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d\n",
+	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d, VM S/N: %d, VM FW: %d.%d.%d\n",
 			hw_info.instrument_serial_number, hw_info.firmware_version_major, hw_info.firmware_version_minor, hw_info.firmware_version_revision,
-			hw_info.mcu_hardware_version, hw_info.psu_hardware_version);
+			hw_info.mcu_hardware_version, hw_info.psu_hardware_version,
+			hw_info.vm_serial_number, hw_info.vm_firmware_version_major, hw_info.vm_firmware_version_minor, hw_info.vm_firmware_version_revision);
 
 }
 
@@ -201,6 +202,12 @@ bool Hypstar::getHardWareInfo(void)
 	if (hw_info.firmware_version_minor < 15) {
 		hw_info.vnir_pixel_count = 0;
 		hw_info.swir_pixel_count = 0;
+	} else if (hw_info.firmware_version_minor < 18) {
+		memcpy(&(hw_info.vnir_pixel_count), &rxbuf[ 3 + sizeof(s_booted)-11], 11);
+		hw_info.vm_firmware_version_major = 0;
+		hw_info.vm_firmware_version_minor = 0;
+		hw_info.vm_firmware_version_revision = 0;
+		hw_info.vm_serial_number = 0;
 	}
 
 	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d\n",
@@ -1087,6 +1094,25 @@ bool Hypstar::sendCalibrationCoefficients(s_extended_calibration_coefficients *p
 	return SEND_PACKETED_DATA(SET_CAL_COEF, (unsigned char *) pNewExternalCalibrationCoeficients, sizeof(s_extended_calibration_coefficients));
 }
 
+bool Hypstar::sendVMCalibrationCoefficients(s_vm_calibration_coefficients *pNewExternalCalibrationCoeficients)
+{
+	LOG_DEBUG("Starting VM calibration coefficient upload, ptr: %p\n", pNewExternalCalibrationCoeficients);
+	LOG_DEBUG("Cal date in send coefs: %d-%d-%d\n", pNewExternalCalibrationCoeficients->calibration_year, pNewExternalCalibrationCoeficients->calibration_month, pNewExternalCalibrationCoeficients->calibration_day);
+	// update dataset crc32
+	pNewExternalCalibrationCoeficients->crc32 = 0;
+
+	int total_length = sizeof(s_vm_calibration_coefficients);
+	int crc32_buflen = ((total_length - 4) % 4) ?
+			(total_length - 4) + 4 - ((total_length - 4) % 4) :
+			(total_length - 4);
+
+	int calc_crc32 = Compute_CRC32_BE(crc32_buflen, (unsigned char*)pNewExternalCalibrationCoeficients);
+	pNewExternalCalibrationCoeficients->crc32 = calc_crc32;
+	LOG_DEBUG("Calibration coefficient crc32: 0x%08X\n", pNewExternalCalibrationCoeficients->crc32);
+
+	return SEND_PACKETED_DATA(VM_CAL_DATA, (unsigned char *) pNewExternalCalibrationCoeficients, sizeof(s_vm_calibration_coefficients));
+}
+
 bool Hypstar::saveCalibrationCoefficients(void)
 {
 	return SEND_AND_WAIT_FOR_ACK_AND_DONE(SAVE_CAL_COEF, 0, 0, 5);
@@ -1749,7 +1775,7 @@ bool Hypstar::sendPacketedData(const char commandId, unsigned char * pDataSet, i
 	unsigned short *pPacketNumber = (unsigned short*)&currentPacket[0];
 	*(unsigned short*) &currentPacket[2] = totalPacketCount;
 	*pPacketNumber = 0;
-	unsigned short packetLength = DATA_PACKET_BODY_SIZE_MAX;
+	unsigned short packetLength = datasetLength >= DATA_PACKET_BODY_SIZE_MAX ? DATA_PACKET_BODY_SIZE_MAX : datasetLength;
 	long datasetEndAddress = (long)pDataSet + (long)datasetLength;
 	do
 	{

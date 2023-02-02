@@ -324,6 +324,12 @@ class Hypstar
 		bool sendCalibrationCoefficients(s_extended_calibration_coefficients *pNewExternalCalibrationCoeficients);
 
 		/**
+		 * \brief	Sends extended calibration coefficients to the VM.
+		 * \param pNewExternalCalibrationCoeficients pointer to structure with new coefficients to be saved.
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool sendVMCalibrationCoefficients(s_vm_calibration_coefficients *pNewExternalCalibrationCoeficients);
+		/**
 		 * \brief	Saves previously sent extended calibration coefficients to the instrument flash.
 		 * Must be called in flash write mode.
 		 * \return status of execution: True if successful, false if not.
