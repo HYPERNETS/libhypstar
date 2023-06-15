@@ -35,6 +35,7 @@ void Hypstar::signal_handler(int signal) {
 
 Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix)
 {
+	// sigkill should kill it in a dirty way
 	signal(SIGINT, Hypstar::signal_handler);
 	signal(SIGTERM, Hypstar::signal_handler);
 	hnport = serial;
@@ -94,7 +95,11 @@ Hypstar::~Hypstar()
 	LOG_INFO("Called destructor!\n");
 
 	// try reading out data from last command we might have interrupted
-	readData(rxbuf, 0.5f);
+	try {
+		readData(rxbuf, 0.5f);
+	} catch (LibHypstar::eSerialReadTimeout e) {
+		// just ignore if there's no response, we wouldn't expect one normally anyway
+	}
 	setBaudRate(B_115200);
 //	 destructor has to find and remove own entry from the instance_holder vector
 	for (uint i = 0; i < Hypstar::instance_holder.size(); i++)
