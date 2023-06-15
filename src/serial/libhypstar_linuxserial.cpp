@@ -193,9 +193,6 @@ void linuxserial::serialWrite(unsigned char* buf, unsigned short count, float ti
         // transmit buffer is empty
 		else
 		{
-			// clear buffer before writing to prevent multiple BAD TX CRC errors in a row
-			tcflush(fd, TCIOFLUSH);
-
 			n = write(fd, buf, count);
 
 			if (n < 1)

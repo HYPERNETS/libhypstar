@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
+#include <sys/stat.h>
+#include <iostream>
 
 #define LOG_DEBUG(format, ...) outputLog(DEBUG, "DEBUG", stdout, format, ##__VA_ARGS__)
 #define LOG_INFO(format, ...) outputLog(INFO, "INFO",  stdout, format, ##__VA_ARGS__)
@@ -23,8 +25,18 @@ bool Hypstar::is_log_message_waiting = false;
 char* Hypstar::_log_prefix_static = NULL;
 //unsigned char Hypstar::rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
 
+#include <signal.h>
+
+void Hypstar::signal_handler(int signal) {
+	LOG(INFO, stdout, "Got signal %d\n", signal);
+	delete Hypstar::instance_holder[0].instance;
+	exit(signal);
+}
+
 Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const char* logprefix)
 {
+	signal(SIGINT, Hypstar::signal_handler);
+	signal(SIGTERM, Hypstar::signal_handler);
 	hnport = serial;
 	setLoglevel(loglevel);
 	_log_prefix = NULL;
@@ -80,6 +92,9 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 Hypstar::~Hypstar()
 {
 	LOG_INFO("Called destructor!\n");
+
+	// try reading out data from last command we might have interrupted
+	readData(rxbuf, 0.5f);
 	setBaudRate(B_115200);
 //	 destructor has to find and remove own entry from the instance_holder vector
 	for (uint i = 0; i < Hypstar::instance_holder.size(); i++)
@@ -197,7 +212,7 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 
 bool Hypstar::getHardWareInfo(void)
 {
-	exchange(BOOTED, NULL, 0, "BOOTED", 0.1);
+	exchange(BOOTED, NULL, 0, "BOOTED", 1, 0.01);
 	memcpy(&hw_info, (rxbuf + 3), sizeof(struct s_booted));
 	if (hw_info.firmware_version_minor < 15) {
 		hw_info.vnir_pixel_count = 0;
@@ -341,7 +356,7 @@ bool Hypstar::setTime(uint64_t time_s)
 
 bool Hypstar::enableVM(bool enable)
 {
-	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 5);
+	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5);
 	return true;
 }
 
@@ -402,7 +417,7 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 	unsigned short sit = source == VM_LIGHT_VIS ? 0 : integration_time;
 
 	acquireSpectra(radiometer, entrance, vit, sit, 1, 0, pSpectraTarget, false);
-	enableVM(false);
+//	enableVM(false);
 	return true;
 }
 
@@ -1184,14 +1199,50 @@ bool Hypstar::sendNewFirmwareData(std::string filePath) {
 }
 
 bool Hypstar::saveNewFirmwareData(void) {
-	return exchange(SAVE_NEW_FW, 0, 0, "SAVE_NEW_FW", 30);
+	return exchange(SAVE_NEW_FW, 0, 0, "SAVE_NEW_FW", 1, 30);
 }
 
 bool Hypstar::switchFirmwareSlot(void) {
 	memset(&firmware_info, 0, sizeof(s_firwmare_info));
-	return exchange(BOOT_NEW_FW, 0, 0, "BOOT_NEW_FW", 30);
+	return exchange(BOOT_NEW_FW, 0, 0, "BOOT_NEW_FW", 1, 30);
 }
 
+bool Hypstar::sendDebugRequest(unsigned char *pPayload, int payloadLength, char *pResponseBuffer) {
+	if (pPayload[0] == 0x68)	{
+		sendCmd(DEBUG_COMMAND, pPayload, payloadLength);
+		return true;
+	}
+	int responseLength =  exchange(DEBUG_COMMAND, pPayload, payloadLength, "DEBUG", 1, 0.1);
+	if (pResponseBuffer && responseLength) {
+		memcpy(pResponseBuffer, rxbuf, responseLength);
+	}
+	return true;
+}
+
+bool Hypstar::dumpFaultInfo(void) {
+	char timestr[40];
+	std::string path = "/tmp/hypstar/";
+	struct tm *timenow;
+	time_t now = time(NULL);
+	timenow = gmtime(&now);
+
+	struct stat st = {0};
+	if (stat(path.c_str(), &st) == -1) {
+		mkdir(path.c_str(), 0777);
+	}
+	strftime(timestr, sizeof(timestr), "HS_dump_%Y-%m-%d_%H-%M-%S.bin", timenow);
+	std::string fn = std::string(timestr);
+	unsigned char buf[4096];
+
+	unsigned short total_length = GET_PACKETED_DATA(DEBUG_DUMP, NULL, 0, (unsigned char*)buf);
+	std::ofstream outfile((path + fn).c_str(), std::ofstream::binary);
+	outfile.write((const char *)buf, total_length);
+	outfile.flush();
+	outfile.close();
+	LOG_ERROR("Dumped fault into %s\n", (path + fn).c_str());
+	LOG_ERROR("Please send this file to support team for debugging\n");
+	return true;
+}
 
 /* Serial interface */
 int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
@@ -1613,6 +1664,10 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		if (l.log_type == LOG_ERROR)
 		{
 			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+			const char hf[10] = "Hardfault";
+			if (memcmp(l.body.message, hf, 9) == 0) {
+				dumpFaultInfo();
+			}
 		}
 		else
 		{
@@ -1623,11 +1678,11 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	return count;
 }
 
-int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s)
+int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, int retry_count, float timeout_s)
 {
 	int receivedByteCount = 0;
 	bool resend = false;
-	for (int i = 0; i < CMD_RETRY; i++)
+	for (int i = 0; i < retry_count; i++)
 	{
 		try
 		{
@@ -1751,11 +1806,9 @@ int Hypstar::getPacketedData(char cmd, unsigned char * pPacketParams, unsigned s
 	LOG_DEBUG("Dataset total length=%d, crc32_buflen=%d, calc_crc32=0x%.8X, rx_crc32=0x%.8X\n",
 					total_length, crc32_buflen, calc_crc32, rx_crc32);
 
-
-	if (calc_crc32 != rx_crc32) {
 		/* @TODO: Outstanding bug in firmware, where CRC32 of GET_SLOTS dataset is not appended. Will get fixed in further FW release */
-		if (cmd != GET_SLOTS)
-		{
+	if (((cmd & 0xFF) != GET_SLOTS) && ((cmd & 0xFF) != DEBUG_DUMP)) {
+		if (calc_crc32 != rx_crc32) {
 			LOG_ERROR("Dataset CRC32 mismatch!\n");
 			// application should decide whether to do re-request
 			throw eBadRxDatasetCRC(calc_crc32, rx_crc32);
@@ -1813,7 +1866,7 @@ bool Hypstar::sendAndWaitForAcknowledge(unsigned char cmd, unsigned char* pPacke
 
 	try
 	{
-		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString, 2);
+		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString, 1, 2);
 
 		if ((rxbuf[0] != ACK))
 		{

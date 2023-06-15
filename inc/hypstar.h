@@ -366,6 +366,14 @@ class Hypstar
 		bool switchFirmwareSlot(void);
 
 		/**
+		 * Intentionally undocumented :P
+		 */
+		bool sendDebugRequest(unsigned char *pPayload, int payloadLength, char *pResponseBuffer);
+
+		/* Dumps a crash report into /tmp/hypstar/ dir */
+		bool dumpFaultInfo(void);
+
+		/**
 		 * \brief	Sets up validation module for measurement and captures a series of spectra
 		 * \param entrance sets default output power for given entrance
 		 * \param source selects light source: VISible, SWIR 1350nm or SWIR 1500nm
@@ -404,7 +412,7 @@ class Hypstar
 		bool sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s = 1);
 		bool sendAndWaitForAckAndDone(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, float timeout_s);
 		int readData(unsigned char *pRxBuf, float timeout_s = READTIMEOUT);
-		int exchange(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, float timeout_s = 0.5);
+		int exchange(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, int retry_count = 5, float timeout_s = 0.5);
 		int getPacketedData(char cmd, unsigned char * pPacketParams, unsigned short paramLength, unsigned char * pTargetMemory, const char * pCommandNameString);
 		bool sendPacketedData(const char commandId, unsigned char * pDataSet, int datasetLength, const char *pCommandIdtring);
 		void outputStream(FILE *stream, const char * type, const char* fmt, ...);
@@ -418,6 +426,7 @@ class Hypstar
 		static void printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
 //		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
+		static void signal_handler(int signal);
 
 		LibHypstar::linuxserial *hnport; //serial port object
 		s_outgoing_packet lastOutgoingPacket;

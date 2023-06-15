@@ -116,7 +116,9 @@
 
 #define GET_VM_IMG 0xD9
 #define PASS_TO_VM 0xDA
+#define DEBUG_COMMAND 0xDB
 #define VM_CAL_DATA 0xDC
+#define DEBUG_DUMP 0xDD
 #define VM_START_FW_UPLOAD 0xDE
 #define VM_FIRMWARE_DATA 0xDF
 
@@ -197,7 +199,10 @@ const uint8_t packet_identifiers[] = {
 		,FW_DATA
 		,SAVE_NEW_FW
 		,GET_FW_VER
-		,GET_SYSTIME};
+		,GET_SYSTIME
+		,DEBUG_DUMP
+		,DEBUG_COMMAND
+};
 
 struct __attribute__((__packed__)) s_booted
 {
