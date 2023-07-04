@@ -365,9 +365,9 @@ bool Hypstar::enableVM(bool enable)
 	return true;
 }
 
-bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
-	enableVM(true);
-	sleep(0.5);
+bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count) {
+//	enableVM(true);
+//	sleep(0.5);
 	// request measurement
 	VM_Status_t *vm_status;
 	s_vm_measurement_request_packet request = {
@@ -421,7 +421,7 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 	unsigned short vit = source == VM_LIGHT_VIS ? integration_time : 0;
 	unsigned short sit = source == VM_LIGHT_VIS ? 0 : integration_time;
 
-	acquireSpectra(radiometer, entrance, vit, sit, 1, 0, pSpectraTarget, false);
+	acquireSpectra(radiometer, entrance, vit, sit, count, 0, pSpectraTarget, false);
 //	enableVM(false);
 	return true;
 }
@@ -2389,12 +2389,12 @@ struct s_libhypstar_version getLibHypstarVersion(void)
 	return libver;
 }
 
-bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
+bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t scan_count) {
 	if (hs == NULL)
 	{
 		return 0;
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
-	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget);
+	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget, scan_count);
 
 }

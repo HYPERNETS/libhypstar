@@ -380,9 +380,10 @@ class Hypstar
 		 * \param integration_time sets measurement integration time
 		 * \param current overrides default output power
 		 * \param pSpectraTarget is target array pointer where captured spectra are to be saved
+		 * \param count: number of spectra to be captured
 		 * \return status of execution: True if successful, false if not.
 		 */
-		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
+		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count = 100);
 		/********************* END OF UNSAFE **********************/
 
 		/* General information about the instrument */
@@ -491,7 +492,7 @@ extern "C"
 	bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integration_time_adjustment_status *), int paramA, int paramB);
 	bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable);
 	bool hypstar_VM_set_current(hypstar_t *hs, float current);
-	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
+	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t scan_count);
 	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 

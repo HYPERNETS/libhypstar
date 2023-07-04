@@ -184,12 +184,13 @@ class Hypstar:
 	# for SWIR default (and MAX) is 0.1A
 	# values are actually in volts with coversion ratio of ~2.2V/A
 	# integration time is for respective light source: if source == VIS, it is for VNIR, if source is SWIR*, it is for SWIR radiometer
-	def VM_measure(self, entrance, source, integration_time, current=0):
-		spectrum = HypstarSpectrum()
-		r = self.lib.hypstar_VM_measure(self.handle, entrance, source, integration_time, current, pointer(spectrum))
+	# default scan count in LHS is set to 100, default value here to ensure backwards-compatibility
+	def VM_measure(self, entrance, source, integration_time, current=0, scan_count:int=100):
+		spectra = (HypstarSpectrum * scan_count)()
+		r = self.lib.hypstar_VM_measure(self.handle, entrance, source, integration_time, current, pointer(spectra), scan_count)
 		if not r:
 			raise Exception("Did not succeed in measuring VM light!")
-		return spectrum
+		return spectra
 
 	def define_argument_types(self):
 		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
@@ -216,7 +217,7 @@ class Hypstar:
 		self.lib.hypstar_shutdown_TEC.argtypes = [c_void_p]
 		self.lib.hypstar_VM_enable.argtypes = [c_void_p, c_uint8]
 		self.lib.hypstar_VM_set_current.argtypes = [c_void_p, c_float]
-		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p]
+		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p, c_uint16]
 
 	def callback_test_fn(self, it_status):
 		print(type(it_status))
