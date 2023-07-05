@@ -1,22 +1,48 @@
 #include <iostream>
 #include <assert.h>
+#include <signal.h>
 #include "../inc/hypstar.h"
 
 using namespace std;
+Hypstar *hs = NULL;
+
+//signal handler
+void sigHandler(int sigNum)
+{
+    // switch VM off if test is interrupted
+	hs->enableVM(false);
+	sleep(1);
+	delete(hs);
+	exit(sigNum);
+}
 
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
-//	e_loglevel l = DEBUG;
-	e_loglevel l = TRACE;
-	Hypstar *hs = Hypstar::getInstance(port, &l);
+	e_loglevel l = DEBUG;
+//	e_loglevel l = TRACE;
 
-	s_spectrum_dataset ds[2];
+	hs = Hypstar::getInstance(port, &l);
+
+	//connect handler to SIGTERM (15) and SIGINT (2, Ctrl-C) signal
+	signal(SIGTERM, sigHandler);
+	signal(SIGINT, sigHandler);
+
+	if (!hs) exit(-1);
+
+	s_spectrum_dataset ds[200];
+
+    hs->enableVM(true);
+    sleep(1);
 
 	hs->measureVM((e_entrance)0x01, (e_vm_light_source)0x01, 100, 0.0f, ds);
 
 	printf("IT: %d, pix: %d, temp: %2.2f\n", ds[0].spectrum_header.integration_time_ms, ds[0].spectrum_header.pixel_count, ds[0].spectrum_header.sensor_temperature);
+
+    hs->enableVM(false);
 	delete(hs);
+
 	printf("--------------\nC++ test pass\n");
+
 
 //	hypstar_t *pHs;
 //	pHs = hypstar_init(port.c_str());
