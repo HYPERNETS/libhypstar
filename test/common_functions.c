@@ -142,7 +142,7 @@ void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
 	pHs->convertRawAccelerometerDataToMsFromEnvLog(item, accel_ms);
 
 	cout << "Acceleration:" << endl;
-	cout << "\tX:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[0] << "( " << accel_gs[0] << " g\t/ " << accel_ms[0] <<" ms2)" << endl;
-	cout << "\tY:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[1] << "( " << accel_gs[1] << " g\t/ " << accel_ms[1] <<" ms2)" << endl;
-	cout << "\tZ:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[2] << "( " << accel_gs[2] << " g\t/ " << accel_ms[2] <<" ms2)" << endl;
+	cout << "\tX: " << fixed << setw(6) << right << log.accelerometer_readings_XYZ[0] << std::setprecision(3) << "  ( " << fixed << setw(6) << accel_gs[0] << " g / " << setw(7) << accel_ms[0] << " ms2)" << endl;
+	cout << "\tY: " << fixed << setw(6) << right << log.accelerometer_readings_XYZ[1] << std::setprecision(3) << "  ( " << fixed << setw(6) << accel_gs[1] << " g / " << setw(7) << accel_ms[1] << " ms2)" << endl;
+	cout << "\tZ: " << fixed << setw(6) << right << log.accelerometer_readings_XYZ[2] << std::setprecision(3) << "  ( " << fixed << setw(6) << accel_gs[2] << " g / " << setw(7) << accel_ms[2] << " ms2)" << endl;
 }
