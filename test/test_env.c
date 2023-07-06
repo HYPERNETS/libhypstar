@@ -15,6 +15,7 @@ int main() {
 
 	hypstar_t *pHs;
 	pHs = hypstar_init(port.c_str());
+	hs->setBaudRate(B_115200);
 	int i = 0;
 	for (i; i < 1; i++) {
 //	while(1) {
