@@ -104,13 +104,13 @@ void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
 	auto tm = *localtime(&t);
 
 	cout << "Timestamp: " << log.timestamp << " (" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ")\n";
-	cout << setw(30) << left << "Temp RH ('C):" << log.humidity_sensor_temperature << "\n";
-	cout << setw(30) << left << "Temp Pressure ('C):" << log.pressure_sensor_temperature << "\n";
+	cout << setw(30) << left << "Temp RH ('C):" << log.humidity_sensor_temperature / 100 << "\n";
+	cout << setw(30) << left << "Temp Pressure ('C):" << log.pressure_sensor_temperature / 100 << "\n";
 	cout << setw(30) << left << "Temp ambient ('C):" << log.internal_ambient_temperature << "\n";
 	cout << setw(30) << left << "Temp SWIR body ('C):" << log.swir_body_temperature << "\n";
 	cout << setw(30) << left << "Temp SWIR sink ('C):" << log.swir_heatsink_temperature << "\n";
-	cout << setw(30) << left << "RH (%):" << log.humidity_sensor_humidity << "\n";
-	cout << setw(30) << left << "Pressure (mbar)\t" << log.pressure_sensor_pressure << "\n";
+	cout << setw(30) << left << "RH (%):" << log.humidity_sensor_humidity / 10 << "\n";
+	cout << setw(30) << left << "Pressure (mbar)\t" << log.pressure_sensor_pressure / 100 << "\n";
 
 	cout << setw(30) << left << "E common (mWh):" << log.energy_common_3v3 << "\n";
 	cout << setw(30) << left << "E e_cam_3v3 (mWh):" << log.energy_camera_3v3 << "\n";

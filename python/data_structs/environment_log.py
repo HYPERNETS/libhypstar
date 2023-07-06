@@ -14,7 +14,7 @@ class PowerBusInfo:
 		self.total_energy = 0.0
 
 	def __str__(self):
-		return 'Voltage: \t{0: .4f} V,\t\tcurrent: \t{1: .4f} A,\t\ttotal energy consumed:\t{2: .4f} mWh'.format(self.voltage, self.current, self.total_energy)
+		return 'Voltage: \t{0: .2f} V,\t\tcurrent: \t{1: .2f} A,\t\ttotal energy consumed:\t{2: .0f} mWh'.format(self.voltage, self.current, self.total_energy)
 
 	def parse(self, name, logentry):
 		exec('self.voltage = logentry.voltage_' + name)
@@ -110,7 +110,7 @@ class EnvironmentLogEntry(Structure):
 			'Temperatures:\n ' \
 			'\tInternal: {:.2f}, Humidity sensor: {}, Pressure sensor: {}\n' \
 			'\tSWIR body: {:.2f}, SWIR heatsink: {:.2f}\n' \
-			'RH: {}%, internal pressure: {} mBar\n' \
+			'RH: {}%, internal pressure: {:.1f} mBar\n' \
 			'Power buses:\n' \
 			'\t12V input: \t\t\t\t{}\n' \
 			'\t12V Multiplexer: \t\t{}\n' \
@@ -123,7 +123,7 @@ class EnvironmentLogEntry(Structure):
 			'{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
 						self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
 						self.swir_body_temperature, self.swir_heatsink_temperature,
-						self.humidity, self.pressure / 10,
+						self.humidity, self.pressure,
 						self.input_12V, self.optical_multiplexer_12V, self.swir_12V, self.validation_module_12V,
 						self.vnir_5V, self.common_3V3, self.digital_electronics_3V3, self.camera_3V3,
 						self.accelerometer_data)
