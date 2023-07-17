@@ -1950,6 +1950,7 @@ void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE
 	strftime(timebuf, 20, "%Y-%m-%dT%H:%M:%S", tm);
 	fprintf(stream, "%s[%s]\t[%s] ", prefix_string, level_string, timebuf);
 	vfprintf(stream, fmt, args);
+	fflush(stream);
 }
 
 void Hypstar::printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...)
