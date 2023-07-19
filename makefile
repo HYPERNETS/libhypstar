@@ -29,7 +29,7 @@ INCLUDES = -Iinc \
 CFLAGS := -std=gnu++11 -rdynamic -fPIC -O0 -g -Wall -Werror
 LFLAGS := -rdynamic -fPIC -lrt -shared -Wl,--export-dynamic
 
-$(shell git update-index -q --refresh)
+$(shell git update-index -q --refresh > /dev/null 2>&1)
 ifneq ($(shell git status --porcelain),)
   COMMIT_HASH_MOD := -mod
 endif
