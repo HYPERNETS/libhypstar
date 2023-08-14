@@ -428,6 +428,7 @@ class Hypstar
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
 //		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 		static void signal_handler(int signal);
+		bool waitForInitDone(void);
 
 		LibHypstar::linuxserial *hnport; //serial port object
 		s_outgoing_packet lastOutgoingPacket;

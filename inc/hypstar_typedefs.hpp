@@ -229,6 +229,7 @@ struct __attribute__((__packed__)) s_booted
 	bool is_1MB_device: 1;
 	bool isolated_adc: 1;
 	bool vm_available: 1;
+	bool hw_init_done: 1;
 	uint8_t vm_firmware_version_major;
 	uint8_t vm_firmware_version_minor;
 	uint8_t vm_firmware_version_revision;

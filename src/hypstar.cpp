@@ -230,10 +230,10 @@ bool Hypstar::getHardWareInfo(void)
 		hw_info.vm_serial_number = 0;
 	}
 
-	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d\n",
+	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d, init=%d\n",
 			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.vnir_pixel_count, hw_info.swir_module_available, hw_info.swir_pixel_count, hw_info.optical_multiplexer_available, hw_info.camera_available,
 			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available,
-			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device, hw_info.isolated_adc, hw_info.vm_available);
+			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device, hw_info.isolated_adc, hw_info.vm_available, hw_info.hw_init_done);
 
 	return true;
 }
@@ -361,11 +361,17 @@ bool Hypstar::setTime(uint64_t time_s)
 
 bool Hypstar::enableVM(bool enable)
 {
+	if (!hw_info.vm_available) {
+		return false;
+	}
 	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5);
 	return true;
 }
 
 bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count) {
+	if (!hw_info.vm_available) {
+		return false;
+	}
 //	enableVM(true);
 //	sleep(0.5);
 	// request measurement
@@ -597,6 +603,9 @@ bool Hypstar::setBaudRate(e_baudrate baudRate)
 
 int Hypstar::acquireJpegImage(bool flip, bool mirror, bool autoFocus, struct s_img_data_holder *pImageDatasetTarget)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	s_capture_image_request_flags flags = {
 			.scale = 0,
 			.flip_v = flip,
@@ -614,6 +623,9 @@ int Hypstar::acquireJpegImage(bool flip, bool mirror, bool autoFocus, struct s_i
 
 unsigned short Hypstar::captureImage(struct s_capture_image_request captureRequestParameters, float timeout_s)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	// clear not used flags
 	captureRequestParameters.flags.na = 0;
 
@@ -637,6 +649,9 @@ unsigned short Hypstar::captureImage(struct s_capture_image_request captureReque
 
 unsigned short Hypstar::captureJpegImage(enum e_jpg_resolution resolution, struct s_capture_image_request_flags flags, float timeout_s)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	struct s_capture_image_request cap_img;
 
 	switch(resolution)
@@ -714,6 +729,10 @@ unsigned short Hypstar::captureJpegImage(enum e_jpg_resolution resolution, struc
 
 int Hypstar::getImage(struct s_img_data_holder *pImageDatasetTarget)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
+
 	int total_length = 0;
 
 	try
@@ -731,9 +750,48 @@ int Hypstar::getImage(struct s_img_data_holder *pImageDatasetTarget)
 	return total_length;
 }
 
+bool Hypstar::waitForInitDone(void)
+{
+	uint8_t itr = 10;
+	while (itr-- && !(hw_info.hw_init_done)) {
+		LOG_INFO("Required hardware still initializing, retry in 1s\n");
+		sleep(1);
+		getHardWareInfo();
+	}
+	if (itr) {
+		return true;
+	}
+	return false;
+}
+
 unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
 		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, bool reuse_last_AIT_value)
 {
+	// check hardware
+	// MUX should be the slowest
+	if (!hw_info.optical_multiplexer_available)
+	{
+		if (!hw_info.hw_init_done)
+		{
+			bool r = waitForInitDone();
+			if (!r || !hw_info.optical_multiplexer_available)
+			{
+				return 0;
+			}
+		} else {
+			return 0;
+		}
+	}
+	if ((spectrumType & VNIR) && !(hw_info.vnir_module_available))
+	{
+		return 0;
+	}
+
+	if ((spectrumType & SWIR) && !(hw_info.swir_module_available))
+	{
+		return 0;
+	}
+
 	struct s_capture_spectra_request_packet capture_spec_packet;
 	unsigned short n_captures = 0;
 	float timeout_s = READTIMEOUT;
@@ -1059,6 +1117,11 @@ std::vector<Spectrum> Hypstar::acquireSpectraVector(enum e_radiometer spectrumTy
 
 bool Hypstar::setTECSetpoint(float setpoint_C)
 {
+	if (!hw_info.swir_tec_module_available)
+	{
+		return false;
+	}
+
 	if ((setpoint_C != TEC_OFF) && ((setpoint_C < MIN_TEC_SETPOINT) || (setpoint_C > MAX_TEC_SETPOINT)))
 	{
 		LOG_ERROR("TEC setpoint (%.1f) is outside the allowed range [%.1f ... %.1f]\n\n",
