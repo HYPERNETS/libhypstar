@@ -9,7 +9,7 @@ using namespace std;
 
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
-	e_loglevel l = DEBUG;
+	e_loglevel l = TRACE;
 	Hypstar *hs = Hypstar::getInstance(port, &l);
 	s_environment_log_entry log, log2;
 
@@ -37,4 +37,5 @@ int main() {
 //		sleep(5);
 	}
 	printf("--------------\nC Test pass\n");
+	fflush(stdout);
 }

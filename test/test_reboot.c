@@ -8,7 +8,8 @@ using namespace std;
 
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
-	Hypstar *hs = Hypstar::getInstance(port);
+	e_loglevel l = TRACE;
+	Hypstar *hs = Hypstar::getInstance(port, &l);
 	auto t1 = std::chrono::high_resolution_clock::now();
 	hs->reboot();
 	auto t2 = std::chrono::high_resolution_clock::now();

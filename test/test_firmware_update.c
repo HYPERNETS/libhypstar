@@ -9,6 +9,9 @@
 
 using namespace std;
 
+
+// $ make test_firmware_update -- -f mm_fw_0_15_23.bin
+
 int main(int argc, char **argv) {
 	DIR *pDir;
 	struct dirent *ep;
@@ -90,8 +93,8 @@ int main(int argc, char **argv) {
 	if (!hs)
 		return -1;
 	hs->setLoglevel(DEBUG);
-//	hs->setLoglevel(TRACE);
-
+	hs->setLoglevel(TRACE);
+//	hs->setBaudRate(B_921600);
 	hs->getFirmwareInfo();
 
 	int previousFwSlot = hs->firmware_info.current_flash_slot;
