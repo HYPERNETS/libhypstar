@@ -1,6 +1,7 @@
 import struct
 from ctypes import *
 from enum import IntEnum
+from time import sleep
 
 from .data_structs.hardware_info import BootedPacketStruct, HypstarSupportedBaudRates
 from .data_structs.calibration_coefficients import CalibrationCoefficients, ExtendedCalibrationCoefficients
@@ -9,6 +10,7 @@ from .data_structs.image import HypstarImage
 from .data_structs.spectrum_raw import RadiometerEntranceType, RadiometerType, HypstarSpectrum
 from .data_structs.varia import HypstarAutoITStatus, ValidationModuleLightType
 
+from logging import debug
 
 class HypstarLogLevel(IntEnum):
 	SILENT = 0
@@ -58,6 +60,30 @@ class Hypstar:
 		r = self.lib.hypstar_get_hw_info(self.handle, pointer(self.hw_info))
 		if not r:
 			print('Could not retrieve hardware information from the instrument')
+
+	def check_instrument(self):
+		# Due to a bug in PSU HW revision 3 12V regulator might not start
+		# up properly and optical multiplexer is not available. Since this
+		# prevents any spectra acquisition, instrument is unusable and
+		# there's no point in continuing. instrument power cycling is the
+		# only workaround and that should be done by caller software, so we
+		# signal it that it's all bad
+		#
+		# Firmware versions above 0.18 start comms before completing HW initialisation
+		# so we retry a few times before giving up. Rest of the uninitialized HW is handled
+		# in library itself.
+		if self.hw_info.psu_hardware_version < 4:
+			for i in range(retry_count :=5):
+				if self.hw_info.optical_multiplexer_available:
+					break
+				else:
+					self.get_hw_info()
+					if i < retry_count:
+						debug("MUX+SWIR+TEC hardware not available, retrying in 5 seconds")
+						sleep(5)
+					else:
+						return False
+		return True
 
 	def reboot(self):
 		r = self.lib.hypstar_reboot(self.handle)
