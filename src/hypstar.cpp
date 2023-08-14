@@ -774,7 +774,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 		if (!hw_info.hw_init_done)
 		{
 			bool r = waitForInitDone();
-			if (!r || !hw_info.optical_multiplexer_available)
+			if (!r && !hw_info.optical_multiplexer_available)
 			{
 				return 0;
 			}
