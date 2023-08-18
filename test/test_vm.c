@@ -51,23 +51,12 @@ int main() {
 //	hs->measureVM((e_entrance)0x01, (e_vm_light_source)0x01, 100, 2.5f, ds);
 //	hs->measureVM((e_entrance)0x01, (e_vm_light_source)0x01, 100, 3.5f, ds);
 
-<<<<<<< Updated upstream
 	printf("IT: %d, pix: %d, temp: %2.2f\n", ds[0].spectrum_header.integration_time_ms, ds[0].spectrum_header.pixel_count, ds[0].spectrum_header.sensor_temperature);
 
     hs->enableVM(false);
 	delete(hs);
 
 	printf("--------------\nC++ test pass\n");
-=======
-	mkdir("data", S_IRWXU | S_IRWXG | S_IRWXO);
-//	while (1) {
-//		save_spec(hs, BOTH, DARK, 256, 256, 1);
-//		save_spec(hs, BOTH, RADIANCE, 256, 256, 1);
-//	}
-//	printf("IT: %d, pix: %d, temp: %2.2f\n", ds[0].spectrum_header.integration_time_ms, ds[0].spectrum_header.pixel_count, ds[0].spectrum_header.sensor_temperature);
-//	delete(hs);
-//	printf("--------------\nC++ test pass\n");
->>>>>>> Stashed changes
 
 
 //	hypstar_t *pHs;

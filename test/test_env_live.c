@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <assert.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "../inc/hypstar.h"
 #include "common_functions.c"
@@ -11,6 +12,9 @@ using namespace std;
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
 //	port = "/dev/ttyUSB0";
+
+	setvbuf(stdout, NULL, _IOFBF, 65536);
+
 	Hypstar *hs = Hypstar::getInstance(port);
 	s_environment_log_entry log, log2;
 	hs->setLoglevel(DEBUG);

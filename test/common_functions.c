@@ -106,6 +106,8 @@ int save_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, i
 		}
 		outfile2.close();
 		free(specs);
+
+		return count;
 }
 
 int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, int inttime_swir, int cap_count) {
@@ -199,9 +201,10 @@ void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
 	pHs->convertRawAccelerometerDataToMsFromEnvLog(item, accel_ms);
 
 	cout << "Acceleration:" << endl;
-	printf("\tX: %05d \t( %8.6f g \t / %8.6f ms2)\n", log.accelerometer_readings_XYZ[0], accel_gs[0], accel_ms[0]);
-	printf("\tY: %05d \t( %8.6f g \t / %8.6f ms2)\n", log.accelerometer_readings_XYZ[1], accel_gs[1], accel_ms[1]);
-	printf("\tZ: %05d \t( %8.6f g \t / %8.6f ms2)\n", log.accelerometer_readings_XYZ[2], accel_gs[2], accel_ms[2]);
+	printf("\tX: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[0], accel_gs[0], accel_ms[0]);
+	printf("\tY: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[1], accel_gs[1], accel_ms[1]);
+	printf("\tZ: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[2], accel_gs[2], accel_ms[2]);
+	fflush(stdout);
 //	cout << "\tX:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[0] << "( " << accel_gs[0] << " g\t/ " << accel_ms[0] <<" ms2)" << endl;
 //	cout << "\tY:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[1] << "( " << accel_gs[1] << " g\t/ " << accel_ms[1] <<" ms2)" << endl;
 //	cout << "\tZ:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[2] << "( " << accel_gs[2] << " g\t/ " << accel_ms[2] <<" ms2)" << endl;
