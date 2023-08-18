@@ -412,6 +412,13 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 			{
 				break;
 			}
+			else if ((rxbuf[0] == 0xCE) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == 0xE9))
+			{
+				// capture VM command timed out on reaching setpoint
+				// just retry
+				EXCHANGE(VM_MEASURE, (unsigned char *) &request, sizeof(s_vm_measurement_request_packet));
+				continue;
+			}
 			else if (rxbuf[0] != VM_STATUS) {
 				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 				hnport->emptyInputBuf();
@@ -1627,6 +1634,7 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 			parm2 = vis_val != 0 ? vis_val : swir_val;
 			n_errors = 1;
 		}
+
 		// sanity check
 		else if ((3 + cmd_len) > (count - 1))
 		{
