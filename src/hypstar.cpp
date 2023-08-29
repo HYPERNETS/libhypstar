@@ -1441,12 +1441,16 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 {
 	if (packetLengthReceived < 3)
 	{
+		LOG(DEBUG, stdout, "received only %d bytes\n", packetLengthReceived);
 		throw ePacketReceivedTooShort(packetLengthReceived);
 	}
 
 	if (packetLengthReceived != lengthInPacketHeader)
 	{
 		char out[packetLengthReceived*3 +3];
+
+		LOG(DEBUG, stdout, "received only %d bytes instead of %d\n", packetLengthReceived, lengthInPacketHeader);
+
 		for (int i = 0; i < packetLengthReceived; i++)
 		{
 			sprintf(&out[i*3], "%.2X ", pBuf[i]);
@@ -1479,6 +1483,7 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 		// at higher baud rates instrument responds with error on partial packets mis-decoded
 		// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
 		if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
+    		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length, RX_BUFFER_PLUS_CRC32_SIZE);
 			throw ePacketLengthMismatch(length, length, (char *)pBuf);
 		}
 
