@@ -406,18 +406,21 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 //			}
 			catch (eHypstar &e)
 			{
-				LOG_ERROR("Something else?\n");
+				if ((rxbuf[0] == NAK) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == STATUS_TIMEOUT))
+				{
+					// capture VM command timed out on reaching setpoint
+					LOG_ERROR("VM stabilisation timed out\n");
+					return false;
+				}
+				else
+					LOG_ERROR("Something else?\n");
 			}
+
 			if ((rxbuf[0] == DONE) && (rxbuf[3] == VM_MEASURE))
 			{
 				break;
 			}
-			else if ((rxbuf[0] == 0xCE) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == 0xE9))
-			{
-				// capture VM command timed out on reaching setpoint
-				LOG_ERROR("VM stabilisation timed out\n");
-				return false;
-			}
+
 			else if (rxbuf[0] != VM_STATUS) {
 				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 				hnport->emptyInputBuf();
@@ -1614,6 +1617,12 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		if (pRxBuf[count - 2] == CAM_ERROR_TIMEOUT)
 		{
 			LOG_ERROR("Spectrometer responded with error 0x%.2X - camera capture timeout (too dark?)\n", CAM_ERROR_TIMEOUT);
+			throw eBadResponse();
+		}
+
+		if (pRxBuf[count - 2] == STATUS_TIMEOUT)
+		{
+			LOG_ERROR("Spectrometer responded with error 0x%.2X - timeout\n", STATUS_TIMEOUT);
 			throw eBadResponse();
 		}
 

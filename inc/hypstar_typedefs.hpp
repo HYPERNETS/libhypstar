@@ -124,9 +124,10 @@
 
 // error codes 0xE?
 #define BAD_CRC 0xE0
-#define BAD_LENGTH 0xE1
 #define BAD_PARM 0xE2
+#define BAD_LENGTH 0xE3
 #define TOO_SHORT 0xE4
+#define STATUS_TIMEOUT 0xE9
 #define NOT_IMPLEMENTED 0x9A
 
 class eHypstar {};
