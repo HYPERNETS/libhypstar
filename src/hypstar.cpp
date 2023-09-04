@@ -1466,10 +1466,10 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 
 //	try
 //	{
-		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE
+		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
 		// since we don't have any commands starting with 0xFy, we check for that and skip it
 		count += pSerial->serialRead(pBuf, 1, timeout_s);
-		if ((pBuf[0] & 0xF0) == 0xF0) {
+		while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
 			pSerial->serialRead(pBuf, 1, timeout_s);
 		}
 		// read response code and packet length
@@ -1557,6 +1557,11 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
     catch (ePacketLengthMismatch &e) {
     	LOG_DEBUG("Got garbage (0x%04X), wrong baud rate?\n", e.lengthInPacket);
     	logBinPacket("<<", pRxBuf, count);
+    	// try reading out extra, maybe we are getting mid-packet or something
+    	count = readData(pRxBuf, timeout_s);
+    	if (count) {
+    		LOG_DEBUG("Got extra %d bytes", count);
+    	}
     	throw eBadResponse();
     }
 
