@@ -2015,7 +2015,9 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 
 bool Hypstar::sendAndWaitForAckAndDone(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s)
 {
-	sendAndWaitForAcknowledge(cmd, pPacketParams, paramLength, pCommandNameString);
+	if (!sendAndWaitForAcknowledge(cmd, pPacketParams, paramLength, pCommandNameString))
+		return false;
+
 	return waitForDone(cmd, pCommandNameString, timeout_s);
 }
 
