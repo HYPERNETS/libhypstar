@@ -82,11 +82,12 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	available_hardware.validation_module = hw_info.vm_available;
 
 	setTime(time(NULL));
-	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d, VM S/N: %d, VM FW: %d.%d.%d\n",
+	// log S/N and FW at all log levels
+	outputLog((enum e_loglevel)0, "INFO",  stdout,
+			"Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d, VM S/N: %d, VM FW: %d.%d.%d\n",
 			hw_info.instrument_serial_number, hw_info.firmware_version_major, hw_info.firmware_version_minor, hw_info.firmware_version_revision,
 			hw_info.mcu_hardware_version, hw_info.psu_hardware_version,
 			hw_info.vm_serial_number, hw_info.vm_firmware_version_major, hw_info.vm_firmware_version_minor, hw_info.vm_firmware_version_revision);
-
 }
 
 //destructor
@@ -134,7 +135,9 @@ Hypstar* Hypstar::getInstance(std::string portname, e_loglevel* loglevel, const 
 		}
 	}
 
-	LOG(INFO, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
+	// log driver version at all log levels
+	printLogStatic((enum e_loglevel)0, "INFO", stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
+
 	Hypstar* h;
 
 	// look through instance_holder for instance with the same portname
