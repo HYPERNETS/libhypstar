@@ -1,6 +1,6 @@
 from _ctypes import Structure
 from ctypes import c_uint16, c_uint8, c_uint64, c_float, c_int16, c_uint32
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 
 from .spectrum import Spectrum
@@ -100,7 +100,7 @@ class HypstarSpectrum(Structure):
 			   "{}" \
 			   "CRC32: {}\n"\
 			.format(
-			self.spectrum_header.timestamp_ms, datetime.utcfromtimestamp(int(self.spectrum_header.timestamp_ms/1000)).strftime('%Y-%m-%d %H:%M:%S'),
+			self.spectrum_header.timestamp_ms, datetime.fromtimestamp(int(self.spectrum_header.timestamp_ms/1000), timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
 			self.spectrum_header.spectrum_config.vnir, self.spectrum_header.spectrum_config.swir,
 			self.spectrum_header.spectrum_config.radiance, self.spectrum_header.spectrum_config.irradiance,
 			self.spectrum_header.integration_time_ms,

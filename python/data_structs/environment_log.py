@@ -1,6 +1,6 @@
 from _ctypes import Structure
 from ctypes import c_uint64, c_int16, c_uint16, c_int32, c_float
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class PowerBusInfo:
@@ -120,7 +120,7 @@ class EnvironmentLogEntry(Structure):
 			'\t3.3V common: \t\t\t{}\n' \
 			'\t3.3V digital: \t\t\t{}\n' \
 			'\t3.3V camera: \t\t\t{}\n' \
-			'{}'.format(self.timestamp, datetime.utcfromtimestamp(int(self.timestamp / 1000)),
+			'{}'.format(self.timestamp, datetime.fromtimestamp(int(self.timestamp / 1000), timezone.utc),
 						self.internal_ambient_temp, self.humidity_sensor_temp, self.pressure_sensor_temp,
 						self.swir_body_temperature, self.swir_heatsink_temperature,
 						self.humidity, self.pressure,
@@ -133,7 +133,7 @@ class EnvironmentLogEntry(Structure):
 	def get_csv_line(self):
 		return "Env:\t{}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.1f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t" \
 			"{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(
-					datetime.fromtimestamp(self.timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S'),
+					datetime.fromtimestamp(int(self.timestamp / 1000), timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
 					self.humidity_sensor_temp, self.humidity,
 					self.pressure_sensor_temp, self.pressure,
 					self.internal_ambient_temp, self.swir_body_temperature, self.swir_heatsink_temperature,
