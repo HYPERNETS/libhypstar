@@ -217,9 +217,9 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 			return false;
 		}
 	}
-	catch (eHypstar&)
+	catch (eHypstar& e)
 	{
-		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot\n");
+		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot (%s)\n", e.what());
 		delete s;
 		return false;
 	}

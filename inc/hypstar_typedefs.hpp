@@ -2,6 +2,7 @@
 #define LIBHYPSTAR_TYPEDEFS_H
 
 #include <cstring>
+#include <typeinfo>
 
 #define DEFAULT_BAUD_RATE 115200
 #define RX_BUFFER_SIZE 1024
@@ -130,25 +131,54 @@
 #define STATUS_TIMEOUT 0xE9
 #define NOT_IMPLEMENTED 0x9A
 
-class eHypstar {};
-class eBadRx: public eHypstar {};
-class eBadLength: public eBadRx {};
+class eHypstar {
+public:
+	const char* exception_name;
+
+	eHypstar ()
+	{
+		exception_name = __PRETTY_FUNCTION__;
+	}
+
+	template <typename DERIVED> eHypstar (DERIVED *d)
+	{
+        exception_name = typeid(*d).name();
+    }
+	const char* what()
+	{
+		return exception_name;
+	}
+};
+
+class eBadRx: virtual public eHypstar
+{
+public:
+	eBadRx(): eHypstar(this) {}
+};
+
+class eBadLength: public eBadRx
+{
+public:
+	eBadLength(): eHypstar(this) {}
+};
+
 class ePacketReceivedTooShort: public eBadLength
 {
 public:
 	int length;
-	ePacketReceivedTooShort(int len)
+	ePacketReceivedTooShort(int len): eHypstar(this)
 	{
 		length = len;
 	}
 };
+
 class ePacketLengthMismatch: public eBadLength
 {
 public:
 	int lengthInPacket;
 	int packetLengthReceived;
 	char *pBufString;
-	ePacketLengthMismatch(int packetHeaderLength, int receivedLength, char *pReceiveBufferString)
+	ePacketLengthMismatch(int packetHeaderLength, int receivedLength, char *pReceiveBufferString): eHypstar(this)
 	{
 		lengthInPacket = packetHeaderLength;
 		packetLengthReceived = receivedLength;
@@ -161,7 +191,7 @@ class eBadRxCRC: public eBadRx
 public:
 	unsigned int crcCalculated;
 	unsigned int crcProvided;
-	eBadRxCRC(unsigned int crcCalc, unsigned int crcIn)
+	eBadRxCRC(unsigned int crcCalc, unsigned int crcIn): eHypstar(this)
 	{
 		crcCalculated = crcCalc;
 		crcProvided = crcIn;
@@ -170,18 +200,39 @@ public:
 
 class eBadRxPacketCRC: public eBadRxCRC
 {
-	using eBadRxCRC::eBadRxCRC;
+public:
+	eBadRxPacketCRC(unsigned int crcCalc, unsigned int crcIn): eHypstar(this), eBadRxCRC(crcCalc, crcIn) {}
 };
 
 class eBadRxDatasetCRC: public eBadRxCRC
 {
-	using eBadRxCRC::eBadRxCRC;
+public:
+	eBadRxDatasetCRC(unsigned int crcCalc, unsigned int crcIn): eHypstar(this), eBadRxCRC(crcCalc, crcIn) {}
 };
 
-class eBadID: public eBadRx {};
-class eBadTxCRC: public eHypstar {};
-class eBadResponse: public eHypstar {};
-class eBadInstrumentState: public eHypstar {};
+class eBadID: public eBadRx
+{
+public:
+	eBadID(): eHypstar(this) {}
+};
+
+class eBadTxCRC: virtual public eHypstar
+{
+public:
+	eBadTxCRC(): eHypstar(this) {}
+};
+
+class eBadResponse: virtual public eHypstar
+{
+public:
+	eBadResponse(): eHypstar(this) {}
+};
+
+class eBadInstrumentState: virtual public eHypstar
+{
+public:
+	eBadInstrumentState(): eHypstar(this) {}
+};
 
 // received packet must start with one of these identifiers
 const uint8_t packet_identifiers[] = {
