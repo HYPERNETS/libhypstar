@@ -210,11 +210,29 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 			delete s;
 			return true;
 		}
+		else
+		{
+			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, not sure if instrument\n", len, expected_size);
+			delete s;
+			return false;
+		}
 	}
-	catch (eHypstar&){}
-	catch (LibHypstar::eSerialReadTimeout&){}
+	catch (eHypstar&)
+	{
+		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot\n");
+		delete s;
+		return false;
+	}
+	catch (LibHypstar::eSerialReadTimeout&)
+	{
+		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
+		delete s;
+		return false;
+	}
+
+	// should never reach here, just in case
+	LOG(ERROR, stderr, "Something unexpected happened while waiting for the instrument to boot\n");
 	delete s;
-	LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 	return false;
 }
 
