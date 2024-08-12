@@ -177,12 +177,12 @@ class ePacketLengthMismatch: public eBadLength
 public:
 	int lengthInPacket;
 	int packetLengthReceived;
-	char *pBufString;
-	ePacketLengthMismatch(int packetHeaderLength, int receivedLength, char *pReceiveBufferString): eHypstar(this)
+	unsigned char * pBuf;
+	ePacketLengthMismatch(int packetHeaderLength, int receivedLength, unsigned char * pReceiveBuffer): eHypstar(this)
 	{
 		lengthInPacket = packetHeaderLength;
 		packetLengthReceived = receivedLength;
-		pBufString = pReceiveBufferString;
+		pBuf = pReceiveBuffer;
 	}
 };
 

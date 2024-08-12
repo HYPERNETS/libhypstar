@@ -255,10 +255,10 @@ class Hypstar:
 		self.lib.hypstar_test_callback(self.handle, cb_func, 1, 2)
 
 
-def wait_for_instrument(port, timeout_s):
+def wait_for_instrument(port, timeout_s, loglevel=HypstarLogLevel.INFO):
 	cls = Hypstar(port, dummy=True)
 	cls.lib = CDLL('libhypstar.so')
 	port_str = create_string_buffer(bytes(port, 'ascii'))
 	cls.lib.hypstar_wait_for_instrument.argtypes = [c_char_p, c_float]
 	cls.lib.hypstar_wait_for_instrument.restype = c_bool
-	return cls.lib.hypstar_wait_for_instrument(port_str, timeout_s)
+	return cls.lib.hypstar_wait_for_instrument(port_str, timeout_s, loglevel)

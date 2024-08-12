@@ -1,3 +1,14 @@
+Version 0.4.0 (vm_dev branch): (Joel Kuusk, 12.08.2024)
+	* changes
+		- Use loglevel from config when waiting for instrument to boot
+		- fix return of pointer to local variable when throwing ePacketLengthMismatch
+
+Version 0.3.7 (vm_dev branch): (Joel Kuusk, 07.08.2024)
+	* changes
+		- Improve logging of exceptions
+		- Update log messages when waiting for instrument to boot
+		- Fix Python 3.12 utcfromtimestamp warnings
+
 Version 0.2:
 	* changes:
 		- renamed functions and structures to be self-explanatory;

@@ -419,14 +419,13 @@ class Hypstar
 		void outputStream(FILE *stream, const char * type, const char* fmt, ...);
 		int findInstrumentBaudrate(int expectedBaudrate);
 		void logBinPacket(const char * direction, unsigned char * pPacket, int packetLength);
+		static void logBinPacketStatic(const char * direction, unsigned char * pPacket, int packetLength);
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
-//		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
-		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
+		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length);
 		static void printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
-//		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 		static void signal_handler(int signal);
 		bool waitForInitDone(void);
 
@@ -464,7 +463,7 @@ extern "C"
 
 	hypstar_t *hypstar_init(const char *port, e_loglevel* loglevel = NULL, const char* logprefix = NULL);
 	void hypstar_close(hypstar_t *hs);
-	bool hypstar_wait_for_instrument(const char *port, float timeout_s);
+	bool hypstar_wait_for_instrument(const char *port, float timeout_s, e_loglevel loglevel);
 
 	bool hypstar_set_baudrate(hypstar_t *hs, e_baudrate new_baudrate);
 	uint64_t hypstar_get_time(hypstar_t *hs);

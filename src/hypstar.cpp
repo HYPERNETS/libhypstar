@@ -27,6 +27,7 @@ char* Hypstar::_log_prefix_static = NULL;
 
 #include <signal.h>
 
+// static member function
 void Hypstar::signal_handler(int signal) {
 	LOG(INFO, stdout, "Got signal %d\n", signal);
 	delete Hypstar::instance_holder[0].instance;
@@ -196,14 +197,18 @@ bool Hypstar::reboot(void)
 	return true;
 }
 
+// static member function
 bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel)
 {
+	_loglevel_static = loglevel;
+
 	LibHypstar::linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
-	unsigned char buf[30];
+	unsigned char buf[RX_BUFFER_PLUS_CRC32_SIZE];
 	CalculateCrcTable_CRC32();
 	try {
 		int expected_size = PACKET_DECORATORS_TOTAL_SIZE + sizeof(struct s_booted);
 		int len = readPacket(s, buf, timeout_s);
+		logBinPacketStatic("<<", buf, len);
 
 		if (((len == expected_size) || (len == expected_size -4)) && (checkPacketCRC(buf, len))) {
 			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, CRC matches, probably instrument\n", len, expected_size);
@@ -347,7 +352,7 @@ bool Hypstar::getCalibrationCoefficientsExtended(void)
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("Caught unhandled eHypstar exception, failed to get calibration coefficients\n");
+		LOG_ERROR("Caught unhandled eHypstar exception (%s), failed to get calibration coefficients\n", e.what());
 		return false;
 	}
 
@@ -936,7 +941,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					}
 					catch (ePacketLengthMismatch &e)
 					{
-						LOG_ERROR("Bad packet length!\n");
+						LOG_ERROR("Bad packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
 					}
 					catch (LibHypstar::eSerialReadTimeout &e){
 						LOG_ERROR("Serial timeout exception?\n");
@@ -950,7 +955,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					}
 					catch (eHypstar &e)
 					{
-						LOG_ERROR("Something else?\n");
+						LOG_ERROR("Something else (%s)?\n", e.what());
 					}
 
 					if ((rxbuf[0] == DONE) && (rxbuf[3] == CAPTURE_SPEC))
@@ -1113,7 +1118,7 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("Caught unhandled eHypstar exception, failed to get spectrum\n");
+		LOG_ERROR("Caught unhandled eHypstar exception (%s), failed to get spectrum\n", e.what());
 	}
 
 	return n_success;
@@ -1376,6 +1381,7 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 	return 0;
 }
 
+// static member function
 LibHypstar::linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
 {
 	LibHypstar::linuxserial *s;
@@ -1458,6 +1464,7 @@ bool Hypstar::sendCmd(unsigned char cmd)
 	return sendCmd(cmd, NULL, 0);
 }
 
+// static member function
 int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived)
 {
 	if (packetLengthReceived < 3)
@@ -1468,70 +1475,57 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 
 	if (packetLengthReceived != lengthInPacketHeader)
 	{
-		char out[packetLengthReceived*3 +3];
-
 		LOG(DEBUG, stdout, "received only %d bytes instead of %d\n", packetLengthReceived, lengthInPacketHeader);
-
-		for (int i = 0; i < packetLengthReceived; i++)
-		{
-			sprintf(&out[i*3], "%.2X ", pBuf[i]);
-		}
-		throw ePacketLengthMismatch(lengthInPacketHeader, packetLengthReceived, out);
+		throw ePacketLengthMismatch(lengthInPacketHeader, packetLengthReceived, pBuf);
 	}
 	return packetLengthReceived;
 }
 
+// static member function
 int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
 {
 	uint16_t count = 0, length = 0;
 
-//	try
-//	{
-		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
-		// since we don't have any commands starting with 0xFy, we check for that and skip it
-		count += pSerial->serialRead(pBuf, 1, timeout_s);
-		while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
-			pSerial->serialRead(pBuf, 1, timeout_s);
-		}
-		// read response code and packet length
-		while (count < 3)
-		{
-			count += pSerial->serialRead(pBuf + count, 3 - count, timeout_s);
-		}
+	// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
+	// since we don't have any commands starting with 0xFy, we check for that and skip it
+	count += pSerial->serialRead(pBuf, 1, timeout_s);
+	while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
+		pSerial->serialRead(pBuf, 1, timeout_s);
+	}
+	// read response code and packet length
+	while (count < 3)
+	{
+		count += pSerial->serialRead(pBuf + count, 3 - count, timeout_s);
+	}
 
-		length = *((unsigned short*)(pBuf + 1));
+	length = *((unsigned short*)(pBuf + 1));
 
-		// at higher baud rates instrument responds with error on partial packets mis-decoded
-		// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
-		if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
-    		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length, RX_BUFFER_PLUS_CRC32_SIZE);
-			throw ePacketLengthMismatch(length, length, (char *)pBuf);
-		}
+	// at higher baud rates instrument responds with error on partial packets mis-decoded
+	// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
+	if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
+		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length & 0x0FFF, RX_BUFFER_PLUS_CRC32_SIZE);
+		throw ePacketLengthMismatch(length & 0xFFF, count, pBuf);
+	}
 
-		if (length & 0x8000) {
-			is_log_message_waiting = true;
-			// clear bit, we don't plan to have THAT large packets
-			length = length & ~(0x8000);
-			pBuf[2] = pBuf[2] & ~(0x80);
-		}
+	if (length & 0x8000) {
+		is_log_message_waiting = true;
+		// clear bit, we don't plan to have THAT large packets
+		length = length & ~(0x8000);
+		pBuf[2] = pBuf[2] & ~(0x80);
+	}
 
-		while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE))
-		{
-			count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
-		}
-//	}
-//	catch (eSerialReadTimeout &e){}
-//	catch (eSerialSelectInterrupted &e)
-//	{
-//		throw eHypstar();
-//	}
+	while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE))
+	{
+		count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
+	}
 
 	int retval = checkPacketLength(pBuf, length, count);
 
 	return retval;
 }
 
-bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel)
+// static member function
+bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length)
 {
 	unsigned short crc_buflen;
 	unsigned char calc_crc, rx_crc;
@@ -1570,21 +1564,23 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	std::stringstream error_ss;
 
 	LOG_DEBUG("readData timeout_sec = %.3f\n", timeout_s);
-    auto t1 = std::chrono::high_resolution_clock::now();
+	auto t1 = std::chrono::high_resolution_clock::now();
 
-    try {
-    	count = readPacket(hnport, pRxBuf, timeout_s);
-    }
-    catch (ePacketLengthMismatch &e) {
-    	LOG_DEBUG("Got garbage (0x%04X), wrong baud rate?\n", e.lengthInPacket);
-    	logBinPacket("<<", pRxBuf, count);
-    	// try reading out extra, maybe we are getting mid-packet or something
-    	count = readData(pRxBuf, timeout_s);
-    	if (count) {
-    		LOG_DEBUG("Got extra %d bytes", count);
-    	}
-    	throw eBadResponse();
-    }
+	try {
+		count = readPacket(hnport, pRxBuf, timeout_s);
+	}
+	catch (ePacketLengthMismatch &e) {
+		LOG_DEBUG("Got garbage (length in header 0x%04X), wrong baud rate?\n", e.lengthInPacket);
+		logBinPacket("<<", e.pBuf, e.packetLengthReceived);
+
+		// try reading out extra, maybe we are getting mid-packet or something
+		count = readData(pRxBuf, timeout_s);
+		if (count) {
+			LOG_DEBUG("Got extra %d bytes", count);
+			logBinPacket("<<", pRxBuf, count);
+		}
+		throw eBadResponse();
+	}
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
@@ -1835,13 +1831,8 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 				continue;
 			}
 			catch (ePacketLengthMismatch &e) {
-				char buf[e.packetLengthReceived *3];
-//				memcpy(buf, e.pBufString, e.packetLengthReceived*3);
-				for (int i = 0; i < e.packetLengthReceived*3; i++)
-				{
-					sprintf(&buf[i], "%c ", e.pBufString[i]);
-				}
-				LOG_DEBUG("Got %d bytes instead of %d << %s\n", e.packetLengthReceived, e.lengthInPacket, buf);
+				LOG_DEBUG("Got %d bytes instead of %d\n", e.packetLengthReceived, e.lengthInPacket);
+				logBinPacket("<<", e.pBuf, e.packetLengthReceived);
 				continue;
 			}
 			catch (ePacketReceivedTooShort &e) {
@@ -1992,7 +1983,7 @@ bool Hypstar::sendAndWaitForAcknowledge(unsigned char cmd, unsigned char* pPacke
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("sendAckCmd failed with exception, cmd = %.2X\n", cmd);
+		LOG_ERROR("sendAckCmd failed with exception (%s), cmd = %.2X\n", e.what(), cmd);
 		return false;
 	}
 
@@ -2054,6 +2045,7 @@ bool Hypstar::sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams
 }
 
 /* Logging */
+// static member function
 void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args)
 {
 	time_t now = time(NULL);
@@ -2065,6 +2057,7 @@ void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE
 	fflush(stream);
 }
 
+// static member function
 void Hypstar::printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...)
 {
 	if (_loglevel_static >= level_target)
@@ -2093,11 +2086,24 @@ void Hypstar::outputLog(e_loglevel level, const char* level_string, FILE *stream
 void Hypstar::logBinPacket(const char* direction, unsigned char* packet, int len)
 {
 	char out[len*3 +3];
+	out[0] = 0;
 	for (int i = 0; i < len; i++)
 	{
 		sprintf(&out[i*3], "%.2X ", packet[i]);
 	}
 	LOG_TRACE("%s %s\n", direction, out);
+}
+
+// static member function
+void Hypstar::logBinPacketStatic(const char* direction, unsigned char* packet, int len)
+{
+	char out[len*3 +3];
+	out[0] = 0;
+
+	for (int i = 0; i < len; i++)
+		sprintf(&out[i*3], "%.2X ", packet[i]);
+
+	LOG(TRACE, stdout, "%s %s\n", direction, out);
 }
 
 void Hypstar::logBytesRead(int rx_count, const char * expectedCommand, const char * cmd)
@@ -2454,11 +2460,11 @@ bool hypstar_save_calibration_coefficients(hypstar_t *hs)
 	return instance->saveCalibrationCoefficients();
 }
 
-bool hypstar_wait_for_instrument(const char *port, float timeout_s)
+bool hypstar_wait_for_instrument(const char *port, float timeout_s, e_loglevel loglevel)
 {
 	try
 	{
-		return Hypstar::waitForInstrumentToBoot(port, timeout_s);
+		return Hypstar::waitForInstrumentToBoot(port, timeout_s, loglevel);
 	}
 	catch (eHypstar&)
 	{
