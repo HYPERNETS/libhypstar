@@ -399,7 +399,7 @@ class Hypstar
 
 		static std::vector<s_hypstar_instance> instance_holder;
 		// public for resting
-		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
+		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s, unsigned char * pExpected = NULL);
 		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 	private:
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];

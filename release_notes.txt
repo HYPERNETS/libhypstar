@@ -1,19 +1,20 @@
-Version 0.4.0 (vm_dev branch): (Joel Kuusk, 12.08.2024)
-	* changes
-		- Use loglevel from config when waiting for instrument to boot
-		- fix return of pointer to local variable when throwing ePacketLengthMismatch
+Version 0.4.1: (2024-10-23)
+	- add unsigned char * pExpected parameter to Hypstar::readPacket. If not NULL (which is default), then discard all received bytes until the expected one
+	- Hypstar::waitForInstrumentToBoot calls readPacket with pExpected pointing to 0xCB to ignore garbage before the first BOOTED packet and avoid "Did not receive BOOTED packet..." error. 
 
-Version 0.3.7 (vm_dev branch): (Joel Kuusk, 07.08.2024)
-	* changes
-		- Improve logging of exceptions
-		- Update log messages when waiting for instrument to boot
-		- Fix Python 3.12 utcfromtimestamp warnings
+Version 0.4.0: (2024-08-12)
+	- Use loglevel from config when waiting for instrument to boot
+	- fix return of pointer to local variable when throwing ePacketLengthMismatch
+
+Version 0.3.7: (2024-08-07)
+	- Improve logging of exceptions
+	- Update log messages when waiting for instrument to boot
+	- Fix Python 3.12 utcfromtimestamp warnings
 
 Version 0.2:
-	* changes:
-		- renamed functions and structures to be self-explanatory;
-		- driver now does not read calibration coefficients on each instantiation, only when getCalibrationCoefficients() is called. This improves startup time;
-		- refactored out direct calls and packet handling from functions. Now low-level serial has single(ish) point of entry;
-        - removed boost dependencies;
-        - singleton approach for instantiation to avoid serial hardware congestion;
-        - added unsafe functions (all the flash write - firmware, calibration)
+	- renamed functions and structures to be self-explanatory;
+	- driver now does not read calibration coefficients on each instantiation, only when getCalibrationCoefficients() is called. This improves startup time;
+	- refactored out direct calls and packet handling from functions. Now low-level serial has single(ish) point of entry;
+    - removed boost dependencies;
+    - singleton approach for instantiation to avoid serial hardware congestion;
+    - added unsafe functions (all the flash write - firmware, calibration)

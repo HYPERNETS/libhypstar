@@ -54,13 +54,13 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	try {
 		getHardWareInfo();
 	}
-	catch (eBadInstrumentState&) {
+	catch (eBadInstrumentState &e) {
 		// we are in firmware upgrade mode, regular commands will fail now
 //		throw eBadInstrumentState();
 		return;
 	}
-//	catch (eSerialReadTimeout &)
-	catch (eHypstar&)
+//	catch (eSerialReadTimeout &e)
+	catch (eHypstar &e)
 	{
 		LOG_INFO("Did not get response from instrument, will try different baud rates\n");
 		int response = findInstrumentBaudrate(DEFAULT_BAUD_RATE);
@@ -99,7 +99,7 @@ Hypstar::~Hypstar()
 	// try reading out data from last command we might have interrupted
 	try {
 		readData(rxbuf, 0.5f);
-	} catch (LibHypstar::eSerialReadTimeout e) {
+	} catch (LibHypstar::eSerialReadTimeout &e) {
 		// just ignore if there's no response, we wouldn't expect one normally anyway
 	}
 	setBaudRate(B_115200);
@@ -189,7 +189,7 @@ bool Hypstar::reboot(void)
 	{
 		readData(rxbuf, timeout_s);
 	}
-	catch (eHypstar &)
+	catch (eHypstar &e)
 	{
 		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 		return false;
@@ -207,7 +207,8 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 	CalculateCrcTable_CRC32();
 	try {
 		int expected_size = PACKET_DECORATORS_TOTAL_SIZE + sizeof(struct s_booted);
-		int len = readPacket(s, buf, timeout_s);
+		unsigned char expected_packet = 0xCB;
+		int len = readPacket(s, buf, timeout_s, &expected_packet);
 		logBinPacketStatic("<<", buf, len);
 
 		if (((len == expected_size) || (len == expected_size -4)) && (checkPacketCRC(buf, len))) {
@@ -222,15 +223,20 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 			return false;
 		}
 	}
-	catch (eHypstar& e)
+	catch (LibHypstar::eSerialReadTimeout &e)
 	{
-		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot (%s)\n", e.what());
+		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 		delete s;
 		return false;
 	}
-	catch (LibHypstar::eSerialReadTimeout&)
+	catch (ePacketLengthMismatch &e)
 	{
-		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
+		LOG(ERROR, stderr, "Bad BOOTED packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
+		logBinPacketStatic("<<", buf, e.packetLengthReceived);
+	}
+	catch (eHypstar &e)
+	{
+		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot (%s)\n", e.what());
 		delete s;
 		return false;
 	}
@@ -1367,15 +1373,15 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 			getHardWareInfo();
 			return br;
 		}
-		catch (LibHypstar::eSerialReadTimeout &){}
-		catch (eBadTxCRC&)
+		catch (LibHypstar::eSerialReadTimeout &e){}
+		catch (eBadTxCRC &e)
 		{
 			// if we managed to unpack error, this is it
 			return br;
 		}
-		catch (eBadRx&) {
+		catch (eBadRx &e) {
 		}
-		catch (eHypstar&){
+		catch (eHypstar &e){
 		}
 	}
 	return 0;
@@ -1390,7 +1396,7 @@ LibHypstar::linuxserial* Hypstar::getSerialPort(std::string portname, int baudra
 		LOG(INFO, stdout, "Creating serial port (baud=%d, portname=%s)\n", DEFAULT_BAUD_RATE, portname.c_str());
 		s = new LibHypstar::linuxserial(DEFAULT_BAUD_RATE, portname.c_str());
 	}
-	catch (LibHypstar::eSerialOpenFailed&)
+	catch (LibHypstar::eSerialOpenFailed &e)
 	{
 		LOG(ERROR, stderr, "%s port open failed\n\n", portname.c_str());
 		throw eHypstar();
@@ -1482,19 +1488,29 @@ int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, i
 }
 
 // static member function
-int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
+int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s, unsigned char * pExpected)
 {
 	uint16_t count = 0, length = 0;
 
-	// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
-	// since we don't have any commands starting with 0xFy, we check for that and skip it
 	count += pSerial->serialRead(pBuf, 1, timeout_s);
-	while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
-		pSerial->serialRead(pBuf, 1, timeout_s);
+
+	if (pExpected != NULL) {
+		// we expect a specific packet and ignore all other garbage
+		while (pBuf[0] != pExpected[0]) {
+			LOG(DEBUG, stdout, "Expecting 0x%.2X, got 0x%.2X instead, discarding.\n", pExpected[0], pBuf[0]);
+			pSerial->serialRead(pBuf, 1, timeout_s);
+		}
+	} else {
+		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
+		// since we don't have any commands starting with 0xFy, we check for that and skip it
+		while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
+			LOG(DEBUG, stdout, "Discarding garbage 0x%.2X at the start of package.\n", pBuf[0]);
+			pSerial->serialRead(pBuf, 1, timeout_s);
+		}
 	}
+
 	// read response code and packet length
-	while (count < 3)
-	{
+	while (count < 3) {
 		count += pSerial->serialRead(pBuf + count, 3 - count, timeout_s);
 	}
 
@@ -1502,9 +1518,10 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 
 	// at higher baud rates instrument responds with error on partial packets mis-decoded
 	// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
-	if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
-		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length & 0x0FFF, RX_BUFFER_PLUS_CRC32_SIZE);
-		throw ePacketLengthMismatch(length & 0xFFF, count, pBuf);
+	// & 0x7FFF because the highest bit is log message flag
+	if ((length & 0x7FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
+		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length & 0x7FFF, RX_BUFFER_PLUS_CRC32_SIZE);
+		throw ePacketLengthMismatch(length & 0x7FFF, count, pBuf);
 	}
 
 	if (length & 0x8000) {
@@ -1514,10 +1531,12 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 		pBuf[2] = pBuf[2] & ~(0x80);
 	}
 
-	while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE))
-	{
-		count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
+	try {
+		while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE)) {
+			count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
+		}
 	}
+	catch (LibHypstar::eSerialReadTimeout &e){}
 
 	int retval = checkPacketLength(pBuf, length, count);
 
@@ -2001,7 +2020,7 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 		{
 			receivedByteCount = readData(rxbuf, timeout_s);
 		}
-		catch (LibHypstar::eSerialReadTimeout &)
+		catch (LibHypstar::eSerialReadTimeout &e)
 		{
 			LOG_ERROR("Timeout while waiting for done!\n");
 			return false;
@@ -2156,7 +2175,7 @@ hypstar_t* hypstar_init(const char *port, e_loglevel* loglevel, const char* logp
 		}
 
 	}
-	catch (eHypstar& e)
+	catch (eHypstar &e)
 	{
 		return NULL;
 	}
@@ -2466,7 +2485,7 @@ bool hypstar_wait_for_instrument(const char *port, float timeout_s, e_loglevel l
 	{
 		return Hypstar::waitForInstrumentToBoot(port, timeout_s, loglevel);
 	}
-	catch (eHypstar&)
+	catch (eHypstar &e)
 	{
 		return NULL;
 	}
