@@ -58,32 +58,32 @@ class BootedPacketStruct(Structure):
 	]
 
 	def __str__(self):
-		return "FW: {}.{}.{}, \n" \
-			   "instrument S/N: {},\n" \
-			   "MCU HW V: {}, PSU HW V: {}\n" \
-			   "VIS SPEC S/N: {}\n" \
-			   "SWIR_SPEC S/N: {}\n" \
-			   "memory slots available: {} \n" \
-			   "available hardware:\n" \
-			   "VIS: {}\n" \
-			   "SIWR: {}\n" \
-			   "MUX: {}\n" \
-			   "CAM: {}\n" \
-			   "accelerometer: {}\n" \
-			   "Humidity sensor: {}\n" \
-			   "Pressure sensor: {}\n" \
-			   "SWIR TEC: {}\n" \
-			   "SD Card: {}\n" \
-			   "Power monitor 1: {}\n" \
-			   "Power monitor 2: {}\n" \
-			   "1MB flash device: {}\n" \
-			   "isolated ADC: {}\n" \
-			   "VM: {}\n" \
-			   "VM FW version: {}.{}.{}\n" \
-			   "VM S/N: {}\n" \
-			   "VNIR pixel count: {}\n" \
-			   "SWIR pixel count: {}".format(
-			   self.firmware_version_major, self.firmware_version_minor, self.firmware_version_revision, hex(self.instrument_serial_number),
+		return "FW version: {}.{}.{}, \n" \
+		   "instrument S/N: {},\n" \
+		   "MCU HW V: {}, PSU HW V: {}\n" \
+		   "VIS SPEC S/N: {}\n" \
+		   "SWIR_SPEC S/N: {}\n" \
+		   "Memory slots available: {} \n" \
+		   "Available hardware:\n" \
+		   "VIS:\t\t{}\n" \
+		   "SIWR:\t\t{}\n" \
+		   "MUX:\t\t{}\n" \
+		   "CAM:\t\t{}\n" \
+		   "Accelerometer:\t{}\n" \
+		   "Humidity sensor:\t{}\n" \
+		   "Pressure sensor:\t{}\n" \
+		   "SWIR TEC:\t{}\n" \
+		   "SD Card:\t\t{}\n" \
+		   "Power monitor 1:\t{}\n" \
+		   "Power monitor 2:\t{}\n" \
+		   "Is 1MB flash dev:\t{}\n" \
+		   "Isolated ADC:\t{}\n" \
+		   "VM:\t\t{}\n" \
+		   "VM FW version: {}.{}.{}\n" \
+		   "VM S/N: {}\n" \
+		   "VNIR pixel count: {}\n" \
+		   "SWIR pixel count: {}".format(
+			   self.firmware_version_major, self.firmware_version_minor, self.firmware_version_revision, self.instrument_serial_number,
 				self.mcu_hardware_version, self.psu_hardware_version,
 				self.vis_serial_number, self.swir_serial_number, self.memory_slot_count,
 				self.vnir_module_available, self.swir_module_available, self.optical_multiplexer_available, self.camera_available,

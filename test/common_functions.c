@@ -1,4 +1,8 @@
 using namespace std;
+#include <iomanip>
+#include <ctime>
+#include <fstream>
+#include <chrono>
 
 void test_and_print_single_spec(unsigned short slot, s_spectrum_dataset *s, int inttime_vis, int inttime_swir, e_radiometer rad, e_entrance entr)
 {
@@ -36,6 +40,12 @@ void test_and_print_single_spec(unsigned short slot, s_spectrum_dataset *s, int 
 	printf("Sensor temp: %.2f 'C\n", s->spectrum_header.sensor_temperature);
 	printf("CRC32: 0x%08X\n", s->crc32_spaceholder);
 
+	if (s->spectrum_header.spectrum_config.swir) {
+		printf("Pixel 150: %d\n", s->spectrum_body[150]);
+	} else {
+		printf("Pixel 1500: %d\n", s->spectrum_body[1500]);
+	}
+
 	if (entr != DARK) {
 		assert(s->spectrum_header.spectrum_config.radiance == (entr == RADIANCE));
 		assert(s->spectrum_header.spectrum_config.irradiance == (entr == IRRADIANCE));
@@ -49,6 +59,55 @@ void test_and_print_single_spec(unsigned short slot, s_spectrum_dataset *s, int 
 	{
 		assert(s->spectrum_header.integration_time_ms == inttime_exp);
 	}
+}
+
+int save_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, int inttime_swir, int cap_count) {
+	int count = hs->captureSpectra(rad, entr, inttime_vis, inttime_swir, cap_count, 0);
+		if (count == 0)
+			return 0;
+		if (rad == BOTH)
+		{
+			if (inttime_vis && inttime_swir) {
+				cap_count = cap_count * 2;
+			}
+		}
+	//	assert(count == cap_count);
+		unsigned short slots[count];
+		hs->getLastSpectraCaptureMemorySlots(slots, count);
+
+		int spec_size = sizeof(s_spectrum_dataset) * count;
+		// for some reason instantiating array segfaults
+		s_spectrum_dataset *specs = (s_spectrum_dataset *) malloc(spec_size);
+		memset(specs, 0, spec_size);
+	//	s_spectrum_dataset specs[count];
+
+		s_spectrum_dataset *s = &specs[0];
+
+		printf("Got slots: ");
+		for (int i = 0; i < count; i++) {
+			printf("%d ", slots[i]);
+		}
+		printf("\n");
+
+		int counter = 0;
+		// test getting single
+//		hs->getSingleSpectrumFromMemorySlot(slots[counter], s);
+		hs->getSpectraFromMemorySlots(&slots[counter], count, &specs[counter]);
+//		test_and_print_single_spec(slots[counter], s, inttime_vis, inttime_swir, rad, entr);
+		struct tm *timenow;
+		time_t now = time(NULL);
+		timenow = gmtime(&now);
+		char filename[40];
+		strftime(filename, sizeof(filename), "data/spec_%Y-%m-%d_%H-%M-%S.spe", timenow);
+
+		std::ofstream outfile2(filename, std::ofstream::binary);
+		while (counter--) {
+			outfile2.write((const char *)&specs[counter], sizeof(s_spectrum_dataset));
+		}
+		outfile2.close();
+		free(specs);
+
+		return count;
 }
 
 int test_spec(Hypstar *hs, e_radiometer rad, e_entrance entr, int inttime_vis, int inttime_swir, int cap_count) {
@@ -104,13 +163,13 @@ void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
 	auto tm = *localtime(&t);
 
 	cout << "Timestamp: " << log.timestamp << " (" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ")\n";
-	cout << setw(30) << left << "Temp RH ('C):" << log.humidity_sensor_temperature << "\n";
-	cout << setw(30) << left << "Temp Pressure ('C):" << log.pressure_sensor_temperature << "\n";
+	cout << setw(30) << left << "Temp RH ('C):" << log.humidity_sensor_temperature / 100.0 << "\n";
+	cout << setw(30) << left << "Temp Pressure ('C):" << log.pressure_sensor_temperature / 100.0 << "\n";
 	cout << setw(30) << left << "Temp ambient ('C):" << log.internal_ambient_temperature << "\n";
 	cout << setw(30) << left << "Temp SWIR body ('C):" << log.swir_body_temperature << "\n";
 	cout << setw(30) << left << "Temp SWIR sink ('C):" << log.swir_heatsink_temperature << "\n";
-	cout << setw(30) << left << "RH (%):" << log.humidity_sensor_humidity << "\n";
-	cout << setw(30) << left << "Pressure (mbar)\t" << log.pressure_sensor_pressure << "\n";
+	cout << setw(30) << left << "RH (%):" << log.humidity_sensor_humidity / 10.0 << "\n";
+	cout << setw(30) << left << "Pressure (mbar)\t" << log.pressure_sensor_pressure / 100.0 << "\n";
 
 	cout << setw(30) << left << "E common (mWh):" << log.energy_common_3v3 << "\n";
 	cout << setw(30) << left << "E e_cam_3v3 (mWh):" << log.energy_camera_3v3 << "\n";
@@ -142,7 +201,11 @@ void printEnv(s_environment_log_entry *item, Hypstar *pHs) {
 	pHs->convertRawAccelerometerDataToMsFromEnvLog(item, accel_ms);
 
 	cout << "Acceleration:" << endl;
-	cout << "\tX:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[0] << "( " << accel_gs[0] << " g\t/ " << accel_ms[0] <<" ms2)" << endl;
-	cout << "\tY:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[1] << "( " << accel_gs[1] << " g\t/ " << accel_ms[1] <<" ms2)" << endl;
-	cout << "\tZ:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[2] << "( " << accel_gs[2] << " g\t/ " << accel_ms[2] <<" ms2)" << endl;
+	printf("\tX: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[0], accel_gs[0], accel_ms[0]);
+	printf("\tY: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[1], accel_gs[1], accel_ms[1]);
+	printf("\tZ: %+06d \t( %9.6f g \t / %11.6f ms2)\n", log.accelerometer_readings_XYZ[2], accel_gs[2], accel_ms[2]);
+	fflush(stdout);
+//	cout << "\tX:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[0] << "( " << accel_gs[0] << " g\t/ " << accel_ms[0] <<" ms2)" << endl;
+//	cout << "\tY:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[1] << "( " << accel_gs[1] << " g\t/ " << accel_ms[1] <<" ms2)" << endl;
+//	cout << "\tZ:" << setw(10) << std::setprecision(6) << log.accelerometer_readings_XYZ[2] << "( " << accel_gs[2] << " g\t/ " << accel_ms[2] <<" ms2)" << endl;
 }

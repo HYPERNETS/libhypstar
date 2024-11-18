@@ -8,7 +8,7 @@ using namespace std;
 void fill_cal_coef_struct(s_extended_calibration_coefficients *s);
 void test_returned_struct_content(s_extended_calibration_coefficients *a, s_extended_calibration_coefficients *b);
 int main() {
-	std::string port = "/dev/ttyUSB1";
+	std::string port = HYPSTAR_PORTNAME;
 //	port = "/dev/ttyUSB0";
 	s_extended_calibration_coefficients out;
 	fill_cal_coef_struct(&out);
@@ -53,7 +53,7 @@ void fill_cal_coef_struct(s_extended_calibration_coefficients *s)
 		float *arr;
 	};
 	s_extended_calibration_coefficients out = *s;
-	s->instrument_serial_number = 123456;
+	s->instrument_serial_number = 223456;
 	s->calibration_year = tm->tm_year+1900;
 	s->calibration_month = tm->tm_mon+1;
 	s->calibration_day = tm->tm_mday;

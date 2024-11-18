@@ -17,8 +17,8 @@ int main() {
 	hs->setBaudRate(B_8000000);
 	int count = 0;
 
-//	std::cout << "Testing VIS RAD auto" << std::endl;
-//	int last_it = test_spec(hs, VNIR, RADIANCE, 0, 0, 1);
+	std::cout << "Testing VIS RAD auto" << std::endl;
+	int last_it = test_spec(hs, VNIR, RADIANCE, 0, 0, 1);
 //
 //	std::cout << "Testing VIS IRRAD auto" << std::endl;
 //	last_it = test_spec(hs, VNIR, IRRADIANCE, 0, 0, 1);
@@ -30,7 +30,7 @@ int main() {
 //	std::cout << "Testing BOTH IRRADIANCE auto with reusing" << std::endl;
 //	int count = hs->captureSpectra(BOTH, IRRADIANCE, 0, 0, 2, 0, 1);
 
-	while (1) {
+//	while (1) {
 		if (hs->available_hardware.swir_module)
 		{
 	//		std::cout << "Testing SWIR RAD auto" << std::endl;
@@ -65,7 +65,7 @@ int main() {
 			assert (r == 0);
 			printf("Got 0 spectra as expected\n");
 		}
-	}
+//	}
 
 	// @TODO: test incorrect input params, that should get blocked by the driver
 	// @TODO: acceleration == 0 for ITs lower than accelerometer refresh rate?

@@ -23,6 +23,7 @@ def get_eeprom_data(e):
 		d = dict(x.split(': ') for x in s.getvalue().strip().split('\n'))
 	# handle empty eeprom - load default values
 	except Exception as ex:
+		print('Failed to read EEPROM, loading defaults')
 		with open (config_filename, 'r') as f:
 			e.load_config(f, 'all')
 			return get_eeprom_data(e)
@@ -77,6 +78,7 @@ if __name__ == '__main__':
 		print('New S/N: \'{}\', product string: \'{}\''.format(sn, product_str))
 	# e.set_serial_number('FTxxxx')
 	# Write to EEPROM
+	e.erase(erase_byte=0x00)
 	print('Writing data to the board, please DO NOT DISCONNECT THE BOARD!')
 	e.commit(dry_run=False)
 	print('Done updating. Old config saved in {}'.format(backup_filename))

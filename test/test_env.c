@@ -9,12 +9,13 @@ using namespace std;
 
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
-	e_loglevel l = DEBUG;
+	e_loglevel l = TRACE;
 	Hypstar *hs = Hypstar::getInstance(port, &l);
 	s_environment_log_entry log, log2;
 
 	hypstar_t *pHs;
 	pHs = hypstar_init(port.c_str());
+	hs->setBaudRate(B_115200);
 	int i = 0;
 	for (i; i < 1; i++) {
 //	while(1) {
@@ -36,4 +37,5 @@ int main() {
 //		sleep(5);
 	}
 	printf("--------------\nC Test pass\n");
+	fflush(stdout);
 }

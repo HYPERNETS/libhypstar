@@ -1,5 +1,5 @@
 import struct
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 import os
@@ -134,7 +134,7 @@ class Spectrum:
 		# plt.tight_layout()
 		ax.plot(range(self.header.pixel_count), self.body, 'b-')
 		fig.suptitle('Spectrum ts:{} ({} UTC)\ntype: {}, {}, IT: {}ms, \ntemp: {:.2f} Tilt: x:{}\u00B1{}; y:{}\u00B1{}; z:{}\u00B1{}:'.format(self.header.timestamp,
-					datetime.utcfromtimestamp(int(self.header.timestamp / 1000)).strftime('%Y-%m-%d %H:%M:%S'),
+					datetime.fromtimestamp(int(self.header.timestamp / 1000), timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
 					self.header.spectrum_type.radiometer,
 					self.header.spectrum_type.optics,
 					self.header.exposure_time,

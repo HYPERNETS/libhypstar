@@ -1,6 +1,6 @@
-DVER_MAJOR := 0
-DVER_MINOR := 3
-DVER_REVISION := 2
+DVER_MAJOR := 1
+DVER_MINOR := 0
+DVER_REVISION := 0
 NAME := hypstar
 VERSION := $(DVER_MAJOR).$(DVER_MINOR).$(DVER_REVISION)
 
@@ -59,7 +59,7 @@ test_%: $(BUILD_DIR)/lib$(NAME).so
 	
 
 $(BUILD_DIR)/lib$(NAME).so: $(BUILD_DIR)/lib$(NAME).so.$(VERSION)
-#	@echo ----- INFO: Linking lib 
+	@echo ----- INFO: Linking lib 
 	$(RM) $(BUILD_DIR)/lib$(NAME).so
 	ln -s lib$(NAME).so.$(VERSION) $(BUILD_DIR)/lib$(NAME).so
 
@@ -79,6 +79,7 @@ clean:
 	$(RM) -r $(BUILD_DIR)
 
 install: lib
+	@echo ----- INFO: Installing lib
 	$(RM) /usr/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so.$(DVER_MAJOR)
@@ -94,6 +95,7 @@ install: lib
 	ldconfig
 
 uninstall: 
+	@echo ----- INFO: Uninstalling lib
 	$(RM) /usr/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/lib/lib$(NAME).so*
 	$(RM) $(INSTALL_DIR)/include/hypstar*

@@ -12,11 +12,11 @@ using namespace std;
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
 //	port = "/dev/ttyUSB0";
-	Hypstar *hs = Hypstar::getInstance(port);
-	if (!hs) {
-		printf("--------------\nC++ Test fail\n");
-		return 1;
-	}
+//	Hypstar *hs = Hypstar::getInstance(port);
+//	if (!hs) {
+//		printf("--------------\nC++ Test fail\n");
+//		return 1;
+//	}
 //	hs->setLoglevel(DEBUG);
 //	hs->setLoglevel(TRACE);
 //	hs->setBaudRate(B_115200);
@@ -24,7 +24,7 @@ int main() {
 //	hs->setBaudRate(B_921600);
 //	hs->setBaudRate(B_3000000);
 //	hs->setBaudRate(B_6000000);
-	hs->setBaudRate(B_8000000);
+//	hs->setBaudRate(B_8000000);
 
 	s_img_data_holder *target_image = (s_img_data_holder*)malloc(sizeof(s_img_data_holder));
 	char filename[40] = "image.jpeg";
@@ -64,7 +64,10 @@ int main() {
 
 	hypstar_t *pHs;
 	pHs = hypstar_init(port.c_str());
-//	hypstar_set_baudrate(pHs, B_8000000);
+//	hypstar_set_loglevel(pHs, TRACE);
+//	hypstar_set_loglevel(pHs, DEBUG);
+//	hypstar_set_baudrate(pHs, B_3000000);
+	hypstar_set_baudrate(pHs, B_8000000);
 	// @TODO: first capture with AF on fails?
 	while(1)
 	{
@@ -79,11 +82,13 @@ int main() {
 		{
 			now = time(NULL);
 			timenow = gmtime(&now);
-//			strftime(filename, sizeof(filename), "images/%Y-%m-%d_%H-%M-%S-2.jpeg", timenow);
+			strftime(filename, sizeof(filename), "images/%Y-%m-%d_%H-%M-%S-2.jpeg", timenow);
 			char *pImgAsChars = (char*)target_image->image_data_jpeg.image_body;
 			char *pLocation = (char*)&pImgAsChars[target_image->image_size-5];
 			uint32_t crc32 = *(uint32_t*)pLocation;
 //			printf("img location p: %p, Location: %p\n", &pImgAsChars[target_image->image_size-4], pLocation);
+			pLocation = pLocation -2;
+			uint8_t iterations = *(uint8_t*)pLocation;
 			pLocation = pLocation -2;
 			uint16_t err_cnt = *(uint8_t*)pLocation;
 			pLocation = pLocation -2;
@@ -97,10 +102,11 @@ int main() {
 //			printf("Filename: %s, size: %lu, crc32: 0x%08x, beginning: %p, end: %p, size from ptrs: %lu, gain: %d shutter: %lu\n", filename, target_image->image_size, crc32, beginning, end, size, gain, shutter);
 			uint8_t target_value = 54;
 			float gain_ratio = ((float)target_value/avg);
-			printf("Filename: %s, size: %lu, crc32: 0x%08x, target: %d, gain: %d shutter: %lu, avg = %d, errs: %d, ratio: %f\n", filename, target_image->image_size, crc32, target_value, gain, shutter, avg, err_cnt, gain_ratio);
+			printf("Filename: %s, size: %lu, crc32: 0x%08x, target: %d, gain: %d shutter: %lu, avg = %d, errs: %d, ratio: %f, iterations: %d\n", filename, target_image->image_size, crc32, target_value, gain, shutter, avg, err_cnt, gain_ratio, iterations);
 			std::ofstream outfile2(filename, std::ofstream::binary);
 			outfile2.write((const char *)target_image->image_data_jpeg.image_body, target_image->image_size);
 			outfile2.close();
+			image_size = 0;
 		}
 		else
 		{

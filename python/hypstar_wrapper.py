@@ -1,6 +1,7 @@
 import struct
 from ctypes import *
 from enum import IntEnum
+from time import sleep
 
 from .data_structs.hardware_info import BootedPacketStruct, HypstarSupportedBaudRates
 from .data_structs.calibration_coefficients import CalibrationCoefficients, ExtendedCalibrationCoefficients
@@ -9,6 +10,7 @@ from .data_structs.image import HypstarImage
 from .data_structs.spectrum_raw import RadiometerEntranceType, RadiometerType, HypstarSpectrum
 from .data_structs.varia import HypstarAutoITStatus, ValidationModuleLightType
 
+from logging import debug
 
 class HypstarLogLevel(IntEnum):
 	SILENT = 0
@@ -58,6 +60,30 @@ class Hypstar:
 		r = self.lib.hypstar_get_hw_info(self.handle, pointer(self.hw_info))
 		if not r:
 			print('Could not retrieve hardware information from the instrument')
+
+	def check_instrument(self):
+		# Due to a bug in PSU HW revision 3 12V regulator might not start
+		# up properly and optical multiplexer is not available. Since this
+		# prevents any spectra acquisition, instrument is unusable and
+		# there's no point in continuing. instrument power cycling is the
+		# only workaround and that should be done by caller software, so we
+		# signal it that it's all bad
+		#
+		# Firmware versions above 0.18 start comms before completing HW initialisation
+		# so we retry a few times before giving up. Rest of the uninitialized HW is handled
+		# in library itself.
+		if self.hw_info.psu_hardware_version < 4:
+			for i in range(retry_count :=5):
+				if self.hw_info.optical_multiplexer_available:
+					break
+				else:
+					self.get_hw_info()
+					if i < retry_count:
+						debug("MUX+SWIR+TEC hardware not available, retrying in 5 seconds")
+						sleep(5)
+					else:
+						return False
+		return True
 
 	def reboot(self):
 		r = self.lib.hypstar_reboot(self.handle)
@@ -184,12 +210,13 @@ class Hypstar:
 	# for SWIR default (and MAX) is 0.1A
 	# values are actually in volts with coversion ratio of ~2.2V/A
 	# integration time is for respective light source: if source == VIS, it is for VNIR, if source is SWIR*, it is for SWIR radiometer
-	def VM_measure(self, entrance, source, integration_time, current=0):
-		spectrum = HypstarSpectrum()
-		r = self.lib.hypstar_VM_measure(self.handle, entrance, source, integration_time, current, pointer(spectrum))
+	# default scan count in LHS is set to 100, default value here to ensure backwards-compatibility
+	def VM_measure(self, entrance, source, integration_time, current=0, scan_count:int=100):
+		spectra = (HypstarSpectrum * scan_count)()
+		r = self.lib.hypstar_VM_measure(self.handle, entrance, source, integration_time, current, pointer(spectra), scan_count)
 		if not r:
 			raise Exception("Did not succeed in measuring VM light!")
-		return spectrum
+		return spectra
 
 	def define_argument_types(self):
 		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
@@ -216,7 +243,7 @@ class Hypstar:
 		self.lib.hypstar_shutdown_TEC.argtypes = [c_void_p]
 		self.lib.hypstar_VM_enable.argtypes = [c_void_p, c_uint8]
 		self.lib.hypstar_VM_set_current.argtypes = [c_void_p, c_float]
-		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p]
+		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p, c_uint16]
 
 	def callback_test_fn(self, it_status):
 		print(type(it_status))
@@ -228,10 +255,10 @@ class Hypstar:
 		self.lib.hypstar_test_callback(self.handle, cb_func, 1, 2)
 
 
-def wait_for_instrument(port, timeout_s):
+def wait_for_instrument(port, timeout_s, loglevel=HypstarLogLevel.INFO):
 	cls = Hypstar(port, dummy=True)
 	cls.lib = CDLL('libhypstar.so')
 	port_str = create_string_buffer(bytes(port, 'ascii'))
 	cls.lib.hypstar_wait_for_instrument.argtypes = [c_char_p, c_float]
 	cls.lib.hypstar_wait_for_instrument.restype = c_bool
-	return cls.lib.hypstar_wait_for_instrument(port_str, timeout_s)
+	return cls.lib.hypstar_wait_for_instrument(port_str, timeout_s, loglevel)

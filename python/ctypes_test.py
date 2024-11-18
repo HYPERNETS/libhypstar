@@ -4,12 +4,17 @@ import unittest
 import time
 from PIL import Image
 
-from data_structs.varia import ValidationModuleLightType
-from data_structs.hardware_info import HypstarSupportedBaudRates
-from data_structs.spectrum_raw import RadiometerType, RadiometerEntranceType
-from hypstar_wrapper import Hypstar, HypstarLogLevel, wait_for_instrument
+from .data_structs.varia import ValidationModuleLightType
+from .data_structs.hardware_info import HypstarSupportedBaudRates
+from .data_structs.spectrum_raw import RadiometerType, RadiometerEntranceType
+from .data_structs.spectrum import Radiometer, EntranceType
+from .hypstar_wrapper import Hypstar, HypstarLogLevel, wait_for_instrument
+from matplotlib.pyplot import sca
 
-serial_port = '/dev/ttyUSB1'
+# to run:
+# python3 -m unittest hypernets.hypstar.libhypstar.python.ctypes_test.CtypeTests.test_VM_capture_one
+
+serial_port = '/dev/ttyUSB0'
 
 
 class CtypeTestsNoInit(unittest.TestCase):
@@ -268,12 +273,54 @@ class CtypeTests(unittest.TestCase):
 		time.sleep(3)
 		self.radiometer.VM_enable(False)
 
-	def test_VM_capture(self):
-		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 100, 0.8)
+	def test_VM_capture_one(self):
+		count = 1
+		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 100, 0.9, scan_count=count)
 		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
 		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
-		s = ret_val.convert_to_spectrum_class()  # Type: Spectrum
+		assert len(ret_val) == count
+		s = ret_val[0].convert_to_spectrum_class()  # Type: Spectrum
+		assert (s.header.spectrum_type.radiometer == Radiometer.VIS)
+		assert (s.header.spectrum_type.optics == EntranceType.RADIANCE)
+		assert (s.header.pixel_count == 2048)
+		assert (s.header.exposure_time == 100)
 		s.plot()
+
+	def test_VM_capture_many(self):
+		count = 23
+		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_VIS, 32, 1.0, scan_count=count)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		assert len(ret_val) == count
+		s = ret_val[0].convert_to_spectrum_class()  # Type: Spectrum
+		assert (s.header.spectrum_type.radiometer == Radiometer.VIS)
+		assert (s.header.spectrum_type.optics == EntranceType.IRRADIANCE)
+		assert (s.header.pixel_count == 2048)
+		assert (s.header.exposure_time == 32)
+		s.plot()
+
+	def test_VM_capture_default(self):
+		self.radiometer.set_log_level(HypstarLogLevel.TRACE)
+		count = 100
+		ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 10, 1.5)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		# ret_val = self.radiometer.VM_measure(RadiometerEntranceType.IRRADIANCE, ValidationModuleLightType.LIGHT_SWIR_1300nm, 100, 0.1)
+		assert len(ret_val) == count
+		s = ret_val[0].convert_to_spectrum_class()  # Type: Spectrum
+		assert (s.header.spectrum_type.radiometer == Radiometer.VIS)
+		assert (s.header.spectrum_type.optics == EntranceType.RADIANCE)
+		assert (s.header.pixel_count == 2048)
+		assert (s.header.exposure_time == 10)
+		s.plot()
+
+	def test_VM_capture_negative(self):
+		self.radiometer.set_log_level(HypstarLogLevel.TRACE)
+		count = -5
+		try:
+			self.radiometer.VM_measure(RadiometerEntranceType.RADIANCE, ValidationModuleLightType.LIGHT_VIS, 10, 1.5, count)
+		except Exception as e:
+			assert type(e) == ValueError
+			assert str(e) == f'Array length must be >= 0, not {count}'
 
 if __name__ == '__main__':
 	unittest.main()

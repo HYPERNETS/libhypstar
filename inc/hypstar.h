@@ -380,9 +380,10 @@ class Hypstar
 		 * \param integration_time sets measurement integration time
 		 * \param current overrides default output power
 		 * \param pSpectraTarget is target array pointer where captured spectra are to be saved
+		 * \param count: number of spectra to be captured
 		 * \return status of execution: True if successful, false if not.
 		 */
-		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
+		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count = 100);
 		/********************* END OF UNSAFE **********************/
 
 		/* General information about the instrument */
@@ -398,7 +399,7 @@ class Hypstar
 
 		static std::vector<s_hypstar_instance> instance_holder;
 		// public for resting
-		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
+		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s, unsigned char * pExpected = NULL);
 		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 	private:
 		unsigned char rxbuf[RX_BUFFER_PLUS_CRC32_SIZE];
@@ -418,15 +419,15 @@ class Hypstar
 		void outputStream(FILE *stream, const char * type, const char* fmt, ...);
 		int findInstrumentBaudrate(int expectedBaudrate);
 		void logBinPacket(const char * direction, unsigned char * pPacket, int packetLength);
+		static void logBinPacketStatic(const char * direction, unsigned char * pPacket, int packetLength);
 		void logBytesRead(int rx_count, const char * expectedCommand, const char * pCommandNameString);
 		void outputLog(e_loglevel level, const char* level_string, FILE *stream, const char* fmt, ...);
-//		static int readPacket(LibHypstar::linuxserial *pSerial, unsigned char * buf, float timeout_s);
 		static int checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived);
-		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel = ERROR);
+		static bool checkPacketCRC(unsigned char *pBuf, unsigned short length);
 		static void printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args);
 		static void printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...);
-//		static LibHypstar::linuxserial* getSerialPort(std::string portname, int baudrate);
 		static void signal_handler(int signal);
+		bool waitForInitDone(void);
 
 		LibHypstar::linuxserial *hnport; //serial port object
 		s_outgoing_packet lastOutgoingPacket;
@@ -462,7 +463,7 @@ extern "C"
 
 	hypstar_t *hypstar_init(const char *port, e_loglevel* loglevel = NULL, const char* logprefix = NULL);
 	void hypstar_close(hypstar_t *hs);
-	bool hypstar_wait_for_instrument(const char *port, float timeout_s);
+	bool hypstar_wait_for_instrument(const char *port, float timeout_s, e_loglevel loglevel);
 
 	bool hypstar_set_baudrate(hypstar_t *hs, e_baudrate new_baudrate);
 	uint64_t hypstar_get_time(hypstar_t *hs);
@@ -491,7 +492,7 @@ extern "C"
 	bool hypstar_test_callback(hypstar_t *hs, void(*cb_function)(s_automatic_integration_time_adjustment_status *), int paramA, int paramB);
 	bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable);
 	bool hypstar_VM_set_current(hypstar_t *hs, float current);
-	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget);
+	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t scan_count);
 	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 

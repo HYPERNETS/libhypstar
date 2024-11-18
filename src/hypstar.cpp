@@ -27,6 +27,7 @@ char* Hypstar::_log_prefix_static = NULL;
 
 #include <signal.h>
 
+// static member function
 void Hypstar::signal_handler(int signal) {
 	LOG(INFO, stdout, "Got signal %d\n", signal);
 	delete Hypstar::instance_holder[0].instance;
@@ -53,13 +54,13 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	try {
 		getHardWareInfo();
 	}
-	catch (eBadInstrumentState&) {
+	catch (eBadInstrumentState &e) {
 		// we are in firmware upgrade mode, regular commands will fail now
 //		throw eBadInstrumentState();
 		return;
 	}
-//	catch (eSerialReadTimeout &)
-	catch (eHypstar&)
+//	catch (eSerialReadTimeout &e)
+	catch (eHypstar &e)
 	{
 		LOG_INFO("Did not get response from instrument, will try different baud rates\n");
 		int response = findInstrumentBaudrate(DEFAULT_BAUD_RATE);
@@ -82,11 +83,12 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 	available_hardware.validation_module = hw_info.vm_available;
 
 	setTime(time(NULL));
-	LOG_INFO("Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d, VM S/N: %d, VM FW: %d.%d.%d\n",
+	// log S/N and FW at all log levels
+	outputLog((enum e_loglevel)0, "INFO",  stdout,
+			"Instrument S/N: %d, FW revision: %d.%d.%d, MCU revision: %d, PSU revision: %d, VM S/N: %d, VM FW: %d.%d.%d\n",
 			hw_info.instrument_serial_number, hw_info.firmware_version_major, hw_info.firmware_version_minor, hw_info.firmware_version_revision,
 			hw_info.mcu_hardware_version, hw_info.psu_hardware_version,
 			hw_info.vm_serial_number, hw_info.vm_firmware_version_major, hw_info.vm_firmware_version_minor, hw_info.vm_firmware_version_revision);
-
 }
 
 //destructor
@@ -97,7 +99,7 @@ Hypstar::~Hypstar()
 	// try reading out data from last command we might have interrupted
 	try {
 		readData(rxbuf, 0.5f);
-	} catch (LibHypstar::eSerialReadTimeout e) {
+	} catch (LibHypstar::eSerialReadTimeout &e) {
 		// just ignore if there's no response, we wouldn't expect one normally anyway
 	}
 	setBaudRate(B_115200);
@@ -134,7 +136,9 @@ Hypstar* Hypstar::getInstance(std::string portname, e_loglevel* loglevel, const 
 		}
 	}
 
-	LOG(INFO, stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
+	// log driver version at all log levels
+	printLogStatic((enum e_loglevel)0, "INFO", stdout, "LibHypstar driver v%d.%d.%d (commit #%s)\n", DVER_MAJOR, DVER_MINOR, DVER_REVISION, DVER_HASH);
+
 	Hypstar* h;
 
 	// look through instance_holder for instance with the same portname
@@ -185,7 +189,7 @@ bool Hypstar::reboot(void)
 	{
 		readData(rxbuf, timeout_s);
 	}
-	catch (eHypstar &)
+	catch (eHypstar &e)
 	{
 		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 		return false;
@@ -193,25 +197,53 @@ bool Hypstar::reboot(void)
 	return true;
 }
 
+// static member function
 bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_loglevel loglevel)
 {
+	_loglevel_static = loglevel;
+
 	LibHypstar::linuxserial *s = getSerialPort(portname, DEFAULT_BAUD_RATE);
-	unsigned char buf[30];
+	unsigned char buf[RX_BUFFER_PLUS_CRC32_SIZE];
 	CalculateCrcTable_CRC32();
 	try {
 		int expected_size = PACKET_DECORATORS_TOTAL_SIZE + sizeof(struct s_booted);
-		int len = readPacket(s, buf, timeout_s);
+		unsigned char expected_packet = 0xCB;
+		int len = readPacket(s, buf, timeout_s, &expected_packet);
+		logBinPacketStatic("<<", buf, len);
 
 		if (((len == expected_size) || (len == expected_size -4)) && (checkPacketCRC(buf, len))) {
 			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, CRC matches, probably instrument\n", len, expected_size);
 			delete s;
 			return true;
 		}
+		else
+		{
+			LOG(INFO, stdout, "Got packet with length %d, expected length: %d, not sure if instrument\n", len, expected_size);
+			delete s;
+			return false;
+		}
 	}
-	catch (eHypstar&){}
-	catch (LibHypstar::eSerialReadTimeout&){}
+	catch (LibHypstar::eSerialReadTimeout &e)
+	{
+		LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
+		delete s;
+		return false;
+	}
+	catch (ePacketLengthMismatch &e)
+	{
+		LOG(ERROR, stderr, "Bad BOOTED packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
+		logBinPacketStatic("<<", buf, e.packetLengthReceived);
+	}
+	catch (eHypstar &e)
+	{
+		LOG(ERROR, stderr, "Caught unhandled exception while waiting for the instrument to boot (%s)\n", e.what());
+		delete s;
+		return false;
+	}
+
+	// should never reach here, just in case
+	LOG(ERROR, stderr, "Something unexpected happened while waiting for the instrument to boot\n");
 	delete s;
-	LOG(ERROR, stderr, "Did not receive BOOTED packet from the instrument during %.2fs\n", timeout_s);
 	return false;
 }
 
@@ -230,10 +262,10 @@ bool Hypstar::getHardWareInfo(void)
 		hw_info.vm_serial_number = 0;
 	}
 
-	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d\n",
+	LOG_DEBUG("memory slots %hu, vnir=%d (%d), swir=%d (%d), mux=%d, cam=%d, accel=%d, rh=%d, pressure=%d, swir_tec=%d SD=%d, PM1=%d, PM2=%d VNIR pix=%d, SWIR pix=%d, 1MB device=%d, IA=%d, VM=%d, init=%d\n",
 			hw_info.memory_slot_count, hw_info.vnir_module_available, hw_info.vnir_pixel_count, hw_info.swir_module_available, hw_info.swir_pixel_count, hw_info.optical_multiplexer_available, hw_info.camera_available,
 			hw_info.accelerometer_available, hw_info.humidity_sensor_available, hw_info.pressure_sensor_available, hw_info.swir_tec_module_available, hw_info.sd_card_available, hw_info.power_monitor_1_available, hw_info.power_monitor_2_available,
-			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device, hw_info.isolated_adc, hw_info.vm_available);
+			hw_info.vnir_pixel_count, hw_info.swir_pixel_count, hw_info.is_1MB_device, hw_info.isolated_adc, hw_info.vm_available, hw_info.hw_init_done);
 
 	return true;
 }
@@ -326,7 +358,7 @@ bool Hypstar::getCalibrationCoefficientsExtended(void)
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("Caught unhandled eHypstar exception, failed to get calibration coefficients\n");
+		LOG_ERROR("Caught unhandled eHypstar exception (%s), failed to get calibration coefficients\n", e.what());
 		return false;
 	}
 
@@ -361,13 +393,19 @@ bool Hypstar::setTime(uint64_t time_s)
 
 bool Hypstar::enableVM(bool enable)
 {
+	if (!hw_info.vm_available) {
+		return false;
+	}
 	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5);
 	return true;
 }
 
-bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
-	enableVM(true);
-	sleep(0.5);
+bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count) {
+	if (!hw_info.vm_available) {
+		return false;
+	}
+//	enableVM(true);
+//	sleep(0.5);
 	// request measurement
 	VM_Status_t *vm_status;
 	s_vm_measurement_request_packet request = {
@@ -400,12 +438,21 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 //			}
 			catch (eHypstar &e)
 			{
-				LOG_ERROR("Something else?\n");
+				if ((rxbuf[0] == NAK) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == STATUS_TIMEOUT))
+				{
+					// capture VM command timed out on reaching setpoint
+					LOG_ERROR("VM stabilisation timed out\n");
+					return false;
+				}
+				else
+					LOG_ERROR("Something else?\n");
 			}
+
 			if ((rxbuf[0] == DONE) && (rxbuf[3] == VM_MEASURE))
 			{
 				break;
 			}
+
 			else if (rxbuf[0] != VM_STATUS) {
 				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 				hnport->emptyInputBuf();
@@ -421,7 +468,7 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 	unsigned short vit = source == VM_LIGHT_VIS ? integration_time : 0;
 	unsigned short sit = source == VM_LIGHT_VIS ? 0 : integration_time;
 
-	acquireSpectra(radiometer, entrance, vit, sit, 1, 0, pSpectraTarget, false);
+	acquireSpectra(radiometer, entrance, vit, sit, count, 0, pSpectraTarget, false);
 //	enableVM(false);
 	return true;
 }
@@ -597,6 +644,9 @@ bool Hypstar::setBaudRate(e_baudrate baudRate)
 
 int Hypstar::acquireJpegImage(bool flip, bool mirror, bool autoFocus, struct s_img_data_holder *pImageDatasetTarget)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	s_capture_image_request_flags flags = {
 			.scale = 0,
 			.flip_v = flip,
@@ -614,6 +664,9 @@ int Hypstar::acquireJpegImage(bool flip, bool mirror, bool autoFocus, struct s_i
 
 unsigned short Hypstar::captureImage(struct s_capture_image_request captureRequestParameters, float timeout_s)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	// clear not used flags
 	captureRequestParameters.flags.na = 0;
 
@@ -637,6 +690,9 @@ unsigned short Hypstar::captureImage(struct s_capture_image_request captureReque
 
 unsigned short Hypstar::captureJpegImage(enum e_jpg_resolution resolution, struct s_capture_image_request_flags flags, float timeout_s)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
 	struct s_capture_image_request cap_img;
 
 	switch(resolution)
@@ -714,6 +770,10 @@ unsigned short Hypstar::captureJpegImage(enum e_jpg_resolution resolution, struc
 
 int Hypstar::getImage(struct s_img_data_holder *pImageDatasetTarget)
 {
+	if (!hw_info.camera_available) {
+		return 0;
+	}
+
 	int total_length = 0;
 
 	try
@@ -731,9 +791,48 @@ int Hypstar::getImage(struct s_img_data_holder *pImageDatasetTarget)
 	return total_length;
 }
 
+bool Hypstar::waitForInitDone(void)
+{
+	uint8_t itr = 10;
+	while (itr-- && !(hw_info.hw_init_done)) {
+		LOG_INFO("Required hardware still initializing, retry in 1s\n");
+		sleep(1);
+		getHardWareInfo();
+	}
+	if (itr) {
+		return true;
+	}
+	return false;
+}
+
 unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_entrance entranceType, unsigned short vnirIntegrationTime_ms,
 		unsigned short swirIntegrationTime_ms, unsigned short scanCount, unsigned short seriesMaxDuration_s, bool reuse_last_AIT_value)
 {
+	// check hardware
+	// MUX should be the slowest
+	if (!hw_info.optical_multiplexer_available)
+	{
+		if (!hw_info.hw_init_done)
+		{
+			bool r = waitForInitDone();
+			if (!r && !hw_info.optical_multiplexer_available)
+			{
+				return 0;
+			}
+		} else {
+			return 0;
+		}
+	}
+	if ((spectrumType & VNIR) && !(hw_info.vnir_module_available))
+	{
+		return 0;
+	}
+
+	if ((spectrumType & SWIR) && !(hw_info.swir_module_available))
+	{
+		return 0;
+	}
+
 	struct s_capture_spectra_request_packet capture_spec_packet;
 	unsigned short n_captures = 0;
 	float timeout_s = READTIMEOUT;
@@ -848,7 +947,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					}
 					catch (ePacketLengthMismatch &e)
 					{
-						LOG_ERROR("Bad packet length!\n");
+						LOG_ERROR("Bad packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
 					}
 					catch (LibHypstar::eSerialReadTimeout &e){
 						LOG_ERROR("Serial timeout exception?\n");
@@ -862,7 +961,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					}
 					catch (eHypstar &e)
 					{
-						LOG_ERROR("Something else?\n");
+						LOG_ERROR("Something else (%s)?\n", e.what());
 					}
 
 					if ((rxbuf[0] == DONE) && (rxbuf[3] == CAPTURE_SPEC))
@@ -1025,7 +1124,7 @@ unsigned short Hypstar::getSpectraFromMemorySlots(unsigned short *pMemorySlotIds
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("Caught unhandled eHypstar exception, failed to get spectrum\n");
+		LOG_ERROR("Caught unhandled eHypstar exception (%s), failed to get spectrum\n", e.what());
 	}
 
 	return n_success;
@@ -1059,6 +1158,11 @@ std::vector<Spectrum> Hypstar::acquireSpectraVector(enum e_radiometer spectrumTy
 
 bool Hypstar::setTECSetpoint(float setpoint_C)
 {
+	if (!hw_info.swir_tec_module_available)
+	{
+		return false;
+	}
+
 	if ((setpoint_C != TEC_OFF) && ((setpoint_C < MIN_TEC_SETPOINT) || (setpoint_C > MAX_TEC_SETPOINT)))
 	{
 		LOG_ERROR("TEC setpoint (%.1f) is outside the allowed range [%.1f ... %.1f]\n\n",
@@ -1269,20 +1373,21 @@ int Hypstar::findInstrumentBaudrate(int expectedBbaudrate)
 			getHardWareInfo();
 			return br;
 		}
-		catch (LibHypstar::eSerialReadTimeout &){}
-		catch (eBadTxCRC&)
+		catch (LibHypstar::eSerialReadTimeout &e){}
+		catch (eBadTxCRC &e)
 		{
 			// if we managed to unpack error, this is it
 			return br;
 		}
-		catch (eBadRx&) {
+		catch (eBadRx &e) {
 		}
-		catch (eHypstar&){
+		catch (eHypstar &e){
 		}
 	}
 	return 0;
 }
 
+// static member function
 LibHypstar::linuxserial* Hypstar::getSerialPort(std::string portname, int baudrate)
 {
 	LibHypstar::linuxserial *s;
@@ -1291,7 +1396,7 @@ LibHypstar::linuxserial* Hypstar::getSerialPort(std::string portname, int baudra
 		LOG(INFO, stdout, "Creating serial port (baud=%d, portname=%s)\n", DEFAULT_BAUD_RATE, portname.c_str());
 		s = new LibHypstar::linuxserial(DEFAULT_BAUD_RATE, portname.c_str());
 	}
-	catch (LibHypstar::eSerialOpenFailed&)
+	catch (LibHypstar::eSerialOpenFailed &e)
 	{
 		LOG(ERROR, stderr, "%s port open failed\n\n", portname.c_str());
 		throw eHypstar();
@@ -1365,75 +1470,81 @@ bool Hypstar::sendCmd(unsigned char cmd)
 	return sendCmd(cmd, NULL, 0);
 }
 
+// static member function
 int Hypstar::checkPacketLength(unsigned char * pBuf, int lengthInPacketHeader, int packetLengthReceived)
 {
 	if (packetLengthReceived < 3)
 	{
+		LOG(DEBUG, stdout, "received only %d bytes\n", packetLengthReceived);
 		throw ePacketReceivedTooShort(packetLengthReceived);
 	}
 
 	if (packetLengthReceived != lengthInPacketHeader)
 	{
-		char out[packetLengthReceived*3 +3];
-		for (int i = 0; i < packetLengthReceived; i++)
-		{
-			sprintf(&out[i*3], "%.2X ", pBuf[i]);
-		}
-		throw ePacketLengthMismatch(lengthInPacketHeader, packetLengthReceived, out);
+		LOG(DEBUG, stdout, "received only %d bytes instead of %d\n", packetLengthReceived, lengthInPacketHeader);
+		throw ePacketLengthMismatch(lengthInPacketHeader, packetLengthReceived, pBuf);
 	}
 	return packetLengthReceived;
 }
 
-int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s)
+// static member function
+int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, float timeout_s, unsigned char * pExpected)
 {
 	uint16_t count = 0, length = 0;
 
-//	try
-//	{
-		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE
-		// since we don't have any commands starting with 0xFy, we check for that and skip it
-		count += pSerial->serialRead(pBuf, 1, timeout_s);
-		if ((pBuf[0] & 0xF0) == 0xF0) {
+	count += pSerial->serialRead(pBuf, 1, timeout_s);
+
+	if (pExpected != NULL) {
+		// we expect a specific packet and ignore all other garbage
+		while (pBuf[0] != pExpected[0]) {
+			LOG(DEBUG, stdout, "Expecting 0x%.2X, got 0x%.2X instead, discarding.\n", pExpected[0], pBuf[0]);
 			pSerial->serialRead(pBuf, 1, timeout_s);
 		}
-		// read response code and packet length
-		while (count < 3)
-		{
-			count += pSerial->serialRead(pBuf + count, 3 - count, timeout_s);
+	} else {
+		// due to possible FTDI/serial bug, at higher baud rates with long cabling packet is prepended with 0xFF or 0xFE or 0x00
+		// since we don't have any commands starting with 0xFy, we check for that and skip it
+		while (((pBuf[0] & 0xF0) == 0xF0) || (pBuf[0] == 0x00)) {
+			LOG(DEBUG, stdout, "Discarding garbage 0x%.2X at the start of package.\n", pBuf[0]);
+			pSerial->serialRead(pBuf, 1, timeout_s);
 		}
+	}
 
-		length = *((unsigned short*)(pBuf + 1));
+	// read response code and packet length
+	while (count < 3) {
+		count += pSerial->serialRead(pBuf + count, 3 - count, timeout_s);
+	}
 
-		// at higher baud rates instrument responds with error on partial packets mis-decoded
-		// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
-		if ((length & 0x0FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
-			throw ePacketLengthMismatch(length, length, (char *)pBuf);
-		}
+	length = *((unsigned short*)(pBuf + 1));
 
-		if (length & 0x8000) {
-			is_log_message_waiting = true;
-			// clear bit, we don't plan to have THAT large packets
-			length = length & ~(0x8000);
-			pBuf[2] = pBuf[2] & ~(0x80);
-		}
+	// at higher baud rates instrument responds with error on partial packets mis-decoded
+	// this error is also misinterpreted at wrong baud rates. Length check used as a sanity-check here
+	// & 0x7FFF because the highest bit is log message flag
+	if ((length & 0x7FFF) > RX_BUFFER_PLUS_CRC32_SIZE) {
+		LOG(DEBUG, stdout, "Length in packet (%d) is larger than buffer size (%d)\n", length & 0x7FFF, RX_BUFFER_PLUS_CRC32_SIZE);
+		throw ePacketLengthMismatch(length & 0x7FFF, count, pBuf);
+	}
 
-		while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE))
-		{
+	if (length & 0x8000) {
+		is_log_message_waiting = true;
+		// clear bit, we don't plan to have THAT large packets
+		length = length & ~(0x8000);
+		pBuf[2] = pBuf[2] & ~(0x80);
+	}
+
+	try {
+		while ((count < length) && (count < RX_BUFFER_PLUS_CRC32_SIZE)) {
 			count += pSerial->serialRead(pBuf + count, length - count, timeout_s);
 		}
-//	}
-//	catch (eSerialReadTimeout &e){}
-//	catch (eSerialSelectInterrupted &e)
-//	{
-//		throw eHypstar();
-//	}
+	}
+	catch (LibHypstar::eSerialReadTimeout &e){}
 
 	int retval = checkPacketLength(pBuf, length, count);
 
 	return retval;
 }
 
-bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length, e_loglevel loglevel)
+// static member function
+bool Hypstar::checkPacketCRC(unsigned char *pBuf, unsigned short length)
 {
 	unsigned short crc_buflen;
 	unsigned char calc_crc, rx_crc;
@@ -1472,16 +1583,23 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	std::stringstream error_ss;
 
 	LOG_DEBUG("readData timeout_sec = %.3f\n", timeout_s);
-    auto t1 = std::chrono::high_resolution_clock::now();
+	auto t1 = std::chrono::high_resolution_clock::now();
 
-    try {
-    	count = readPacket(hnport, pRxBuf, timeout_s);
-    }
-    catch (ePacketLengthMismatch &e) {
-    	LOG_DEBUG("Got garbage (0x%04X), wrong baud rate?\n", e.lengthInPacket);
-    	logBinPacket("<<", pRxBuf, count);
-    	throw eBadResponse();
-    }
+	try {
+		count = readPacket(hnport, pRxBuf, timeout_s);
+	}
+	catch (ePacketLengthMismatch &e) {
+		LOG_DEBUG("Got garbage (length in header 0x%04X), wrong baud rate?\n", e.lengthInPacket);
+		logBinPacket("<<", e.pBuf, e.packetLengthReceived);
+
+		// try reading out extra, maybe we are getting mid-packet or something
+		count = readData(pRxBuf, timeout_s);
+		if (count) {
+			LOG_DEBUG("Got extra %d bytes", count);
+			logBinPacket("<<", pRxBuf, count);
+		}
+		throw eBadResponse();
+	}
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
@@ -1548,6 +1666,12 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 			throw eBadResponse();
 		}
 
+		if (pRxBuf[count - 2] == STATUS_TIMEOUT)
+		{
+			LOG_ERROR("Spectrometer responded with error 0x%.2X - timeout\n", STATUS_TIMEOUT);
+			throw eBadResponse();
+		}
+
 		// Response packet: response code(1), packet_length(2), cmd_code(1), cmd_packet_length(2), rest_of_cmd_packet(...), error_code(1)
 		cmd_len = *((unsigned short*)(pRxBuf + 4));
 
@@ -1564,6 +1688,7 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 			parm2 = vis_val != 0 ? vis_val : swir_val;
 			n_errors = 1;
 		}
+
 		// sanity check
 		else if ((3 + cmd_len) > (count - 1))
 		{
@@ -1725,13 +1850,8 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 				continue;
 			}
 			catch (ePacketLengthMismatch &e) {
-				char buf[e.packetLengthReceived *3];
-//				memcpy(buf, e.pBufString, e.packetLengthReceived*3);
-				for (int i = 0; i < e.packetLengthReceived*3; i++)
-				{
-					sprintf(&buf[i], "%c ", e.pBufString[i]);
-				}
-				LOG_DEBUG("Got %d bytes instead of %d << %s\n", e.packetLengthReceived, e.lengthInPacket, buf);
+				LOG_DEBUG("Got %d bytes instead of %d\n", e.packetLengthReceived, e.lengthInPacket);
+				logBinPacket("<<", e.pBuf, e.packetLengthReceived);
 				continue;
 			}
 			catch (ePacketReceivedTooShort &e) {
@@ -1882,7 +2002,7 @@ bool Hypstar::sendAndWaitForAcknowledge(unsigned char cmd, unsigned char* pPacke
 	}
 	catch (eHypstar &e)
 	{
-		LOG_ERROR("sendAckCmd failed with exception, cmd = %.2X\n", cmd);
+		LOG_ERROR("sendAckCmd failed with exception (%s), cmd = %.2X\n", e.what(), cmd);
 		return false;
 	}
 
@@ -1900,7 +2020,7 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 		{
 			receivedByteCount = readData(rxbuf, timeout_s);
 		}
-		catch (LibHypstar::eSerialReadTimeout &)
+		catch (LibHypstar::eSerialReadTimeout &e)
 		{
 			LOG_ERROR("Timeout while waiting for done!\n");
 			return false;
@@ -1931,7 +2051,9 @@ bool Hypstar::waitForDone(unsigned char cmd, const char* cmd_str, float timeout_
 
 bool Hypstar::sendAndWaitForAckAndDone(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s)
 {
-	sendAndWaitForAcknowledge(cmd, pPacketParams, paramLength, pCommandNameString);
+	if (!sendAndWaitForAcknowledge(cmd, pPacketParams, paramLength, pCommandNameString))
+		return false;
+
 	return waitForDone(cmd, pCommandNameString, timeout_s);
 }
 
@@ -1942,6 +2064,7 @@ bool Hypstar::sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams
 }
 
 /* Logging */
+// static member function
 void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE *stream, const char* fmt, va_list args)
 {
 	time_t now = time(NULL);
@@ -1953,6 +2076,7 @@ void Hypstar::printLog(const char* prefix_string, const char* level_string, FILE
 	fflush(stream);
 }
 
+// static member function
 void Hypstar::printLogStatic(e_loglevel level_target, const char* level_string, FILE *stream, const char* fmt,  ...)
 {
 	if (_loglevel_static >= level_target)
@@ -1981,11 +2105,24 @@ void Hypstar::outputLog(e_loglevel level, const char* level_string, FILE *stream
 void Hypstar::logBinPacket(const char* direction, unsigned char* packet, int len)
 {
 	char out[len*3 +3];
+	out[0] = 0;
 	for (int i = 0; i < len; i++)
 	{
 		sprintf(&out[i*3], "%.2X ", packet[i]);
 	}
 	LOG_TRACE("%s %s\n", direction, out);
+}
+
+// static member function
+void Hypstar::logBinPacketStatic(const char* direction, unsigned char* packet, int len)
+{
+	char out[len*3 +3];
+	out[0] = 0;
+
+	for (int i = 0; i < len; i++)
+		sprintf(&out[i*3], "%.2X ", packet[i]);
+
+	LOG(TRACE, stdout, "%s %s\n", direction, out);
 }
 
 void Hypstar::logBytesRead(int rx_count, const char * expectedCommand, const char * cmd)
@@ -2038,7 +2175,7 @@ hypstar_t* hypstar_init(const char *port, e_loglevel* loglevel, const char* logp
 		}
 
 	}
-	catch (eHypstar& e)
+	catch (eHypstar &e)
 	{
 		return NULL;
 	}
@@ -2342,13 +2479,13 @@ bool hypstar_save_calibration_coefficients(hypstar_t *hs)
 	return instance->saveCalibrationCoefficients();
 }
 
-bool hypstar_wait_for_instrument(const char *port, float timeout_s)
+bool hypstar_wait_for_instrument(const char *port, float timeout_s, e_loglevel loglevel)
 {
 	try
 	{
-		return Hypstar::waitForInstrumentToBoot(port, timeout_s);
+		return Hypstar::waitForInstrumentToBoot(port, timeout_s, loglevel);
 	}
-	catch (eHypstar&)
+	catch (eHypstar &e)
 	{
 		return NULL;
 	}
@@ -2390,12 +2527,12 @@ struct s_libhypstar_version getLibHypstarVersion(void)
 	return libver;
 }
 
-bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget) {
+bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t scan_count) {
 	if (hs == NULL)
 	{
 		return 0;
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
-	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget);
+	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget, scan_count);
 
 }
