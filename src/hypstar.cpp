@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <iostream>
 
@@ -50,16 +51,16 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 
 	CalculateCrcTable_CRC32();
 
-//	setLoglevel(DEBUG);
+	// wait 1.5 s until LED source boots up and reports S/N and FW
+	usleep(1.5e6);
+
 	try {
 		getHardWareInfo();
 	}
 	catch (eBadInstrumentState &e) {
 		// we are in firmware upgrade mode, regular commands will fail now
-//		throw eBadInstrumentState();
 		return;
 	}
-//	catch (eSerialReadTimeout &e)
 	catch (eHypstar &e)
 	{
 		LOG_INFO("Did not get response from instrument, will try different baud rates\n");
@@ -405,7 +406,7 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 		return false;
 	}
 //	enableVM(true);
-//	sleep(0.5);
+//	usleep(500000);
 	// request measurement
 	VM_Status_t *vm_status;
 	s_vm_measurement_request_packet request = {
