@@ -938,7 +938,8 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 				int k = 1;
 				float next_timeout;
 
-				timeout_s = 1.0;
+				// use long timeout so that MUX has enough time for switching to the requested entrance
+				timeout_s = 10.0;
 
 				while(true)
 				{

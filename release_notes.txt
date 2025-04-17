@@ -1,3 +1,6 @@
+Version 1.0.2: (2025-04-16)
+	- Increase timeout during automatic integration time setting.
+
 Version 1.0.1: (2025-04-02)
 	- Sleep for 1.5 s in Hypstar class constructor before requesting HW info.
 	  Otherwise LED source S/N and FW may be missing in logs.
