@@ -621,7 +621,11 @@ bool Hypstar::setBaudRate(e_baudrate baudRate)
 	// @TODO: check for BR validity
 	try
 	{
-		SEND_AND_WAIT_FOR_ACK(SET_BAUD, (unsigned char *)&baudRate, (unsigned short)sizeof(baudRate));
+		if (!SEND_AND_WAIT_FOR_ACK(SET_BAUD, (unsigned char *)&baudRate, (unsigned short)sizeof(baudRate)))
+		{
+			LOG_ERROR("Did not receive ACK when requestig new baud rate\n");
+			return false;
+		}
 
 		/* switch terminal baudrate and wait for DONE packet from the instrument */
 		hnport->setBaud((int)baudRate);
@@ -1884,6 +1888,7 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 		break;
 	}
 	if (!receivedByteCount) {
+		LOG_ERROR("No response to %s command\n", pCommandNameString);
 		throw eHypstar();
 	}
 	return receivedByteCount;
