@@ -51,8 +51,11 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 
 	CalculateCrcTable_CRC32();
 
-	// wait 1.5 s until LED source boots up and reports S/N and FW
-	usleep(1.5e6);
+	// wait 2.5 s until LED source boots up and reports S/N and FW
+	usleep(2.5e6);
+
+	// clean buffer in case we got some garbage, e.g. due to reboot caused by voltage drop
+	hnport->emptyInputBuf();
 
 	try {
 		getHardWareInfo();
@@ -956,10 +959,14 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 						LOG_ERROR("Bad packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
 					}
 					catch (LibHypstar::eSerialReadTimeout &e){
-						LOG_ERROR("Serial timeout exception?\n");
+						LOG_ERROR("Serial timeout exception\n");
+
+						// bail out, otherwise we'll reprocess the same package indefinitely
+						return 0;
 					}
 					catch (LibHypstar::eSerialSelectInterrupted &e) {
 						LOG_ERROR("Serial select interrupted\n");
+						return 0;
 					}
 					catch (eBadResponse &e) {
 						// probably capture timeout, rethrow
