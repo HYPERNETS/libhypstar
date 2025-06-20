@@ -390,6 +390,7 @@ uint64_t Hypstar::getTime(void)
 
 bool Hypstar::setTime(uint64_t time_s)
 {
+	LOG_DEBUG("Setting system time to %" PRIu64 "\n", time_s);
 	// @TODO: repeated instantiation sends done response right away, at least with higher default baud rate
 	EXCHANGE(SET_SYSTIME, (unsigned char *)&time_s, (unsigned short)sizeof(time_s));
 	return true;
