@@ -1541,6 +1541,7 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 	if (length & 0x8000) {
 		is_log_message_waiting = true;
 		// clear bit, we don't plan to have THAT large packets
+		LOG(TRACE, stdout, "Log message waiting, changing RxBuf[2] %.2X->%.2X\n", pBuf[2], pBuf[2] & ~(0x80));
 		length = length & ~(0x8000);
 		pBuf[2] = pBuf[2] & ~(0x80);
 	}
@@ -1804,18 +1805,20 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	{
 		is_log_message_waiting = false;
 		s_log_item l;
-		getSystemLogEntry(&l, 0);
-		if (l.log_type == LOG_ERROR)
+		if (getSystemLogEntry(&l, 0))
 		{
-			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
-			const char hf[10] = "Hardfault";
-			if (memcmp(l.body.message, hf, 9) == 0) {
-				dumpFaultInfo();
+			if (l.log_type == LOG_ERROR)
+			{
+				LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+				const char hf[10] = "Hardfault";
+				if (memcmp(l.body.message, hf, 9) == 0) {
+					dumpFaultInfo();
+				}
 			}
-		}
-		else
-		{
-			LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+			else
+			{
+				LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+			}
 		}
 	}
 
