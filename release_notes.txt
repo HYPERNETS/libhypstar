@@ -5,6 +5,7 @@ Version 1.0.4: (2025-06-27)
 	- Print timestamp at DEBUG log level when setting time
 	- Log at TRACE level when log message is waiting and RxBuf is modified
 	- Check if syslog retrieval succeeded before logging
+	- fix syslog printing order
 
 Version 1.0.3: (2025-05-06)
 	 - Handle missing ACK during baud rate change

@@ -1801,27 +1801,6 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		throw eBadResponse();
 	}
 
-	if (is_log_message_waiting)
-	{
-		is_log_message_waiting = false;
-		s_log_item l;
-		if (getSystemLogEntry(&l, 0))
-		{
-			if (l.log_type == LOG_ERROR)
-			{
-				LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
-				const char hf[10] = "Hardfault";
-				if (memcmp(l.body.message, hf, 9) == 0) {
-					dumpFaultInfo();
-				}
-			}
-			else
-			{
-				LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
-			}
-		}
-	}
-
 	return count;
 }
 
@@ -1849,6 +1828,27 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			try
 			{
 				receivedByteCount = readData(rxbuf, timeout_s);
+
+				while (is_log_message_waiting)
+				{
+					is_log_message_waiting = false;
+					s_log_item l;
+					if (getSystemLogEntry(&l, 0))
+					{
+						if (l.log_type == LOG_ERROR)
+						{
+							LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+							const char hf[10] = "Hardfault";
+							if (memcmp(l.body.message, hf, 9) == 0) {
+								dumpFaultInfo();
+							}
+						}
+						else
+						{
+							LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+						}
+					}
+				}
 			}
 			catch (eBadTxCRC &e)
 			{
