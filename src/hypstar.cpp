@@ -51,8 +51,11 @@ Hypstar::Hypstar(LibHypstar::linuxserial *serial, e_loglevel loglevel, const cha
 
 	CalculateCrcTable_CRC32();
 
-	// wait 1.5 s until LED source boots up and reports S/N and FW
-	usleep(1.5e6);
+	// wait 2.5 s until LED source boots up and reports S/N and FW
+	usleep(2.5e6);
+
+	// clean buffer in case we got some garbage, e.g. due to reboot caused by voltage drop
+	hnport->emptyInputBuf();
 
 	try {
 		getHardWareInfo();
@@ -387,6 +390,7 @@ uint64_t Hypstar::getTime(void)
 
 bool Hypstar::setTime(uint64_t time_s)
 {
+	LOG_DEBUG("Setting system time to %" PRIu64 "\n", time_s);
 	// @TODO: repeated instantiation sends done response right away, at least with higher default baud rate
 	EXCHANGE(SET_SYSTIME, (unsigned char *)&time_s, (unsigned short)sizeof(time_s));
 	return true;
@@ -956,10 +960,14 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 						LOG_ERROR("Bad packet length! (length_in_header = %d, received %d)\n", e.lengthInPacket, e.packetLengthReceived);
 					}
 					catch (LibHypstar::eSerialReadTimeout &e){
-						LOG_ERROR("Serial timeout exception?\n");
+						LOG_ERROR("Serial timeout exception\n");
+
+						// bail out, otherwise we'll reprocess the same package indefinitely
+						return 0;
 					}
 					catch (LibHypstar::eSerialSelectInterrupted &e) {
 						LOG_ERROR("Serial select interrupted\n");
+						return 0;
 					}
 					catch (eBadResponse &e) {
 						// probably capture timeout, rethrow
@@ -1533,6 +1541,7 @@ int Hypstar::readPacket(LibHypstar::linuxserial *pSerial, unsigned char * pBuf, 
 	if (length & 0x8000) {
 		is_log_message_waiting = true;
 		// clear bit, we don't plan to have THAT large packets
+		LOG(TRACE, stdout, "Log message waiting, changing RxBuf[2] %.2X->%.2X\n", pBuf[2], pBuf[2] & ~(0x80));
 		length = length & ~(0x8000);
 		pBuf[2] = pBuf[2] & ~(0x80);
 	}
@@ -1792,25 +1801,6 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		throw eBadResponse();
 	}
 
-	if (is_log_message_waiting)
-	{
-		is_log_message_waiting = false;
-		s_log_item l;
-		getSystemLogEntry(&l, 0);
-		if (l.log_type == LOG_ERROR)
-		{
-			LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
-			const char hf[10] = "Hardfault";
-			if (memcmp(l.body.message, hf, 9) == 0) {
-				dumpFaultInfo();
-			}
-		}
-		else
-		{
-			LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
-		}
-	}
-
 	return count;
 }
 
@@ -1838,6 +1828,27 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			try
 			{
 				receivedByteCount = readData(rxbuf, timeout_s);
+
+				while (is_log_message_waiting)
+				{
+					is_log_message_waiting = false;
+					s_log_item l;
+					if (getSystemLogEntry(&l, 0))
+					{
+						if (l.log_type == LOG_ERROR)
+						{
+							LOG_ERROR("SYSLOG ERROR [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+							const char hf[10] = "Hardfault";
+							if (memcmp(l.body.message, hf, 9) == 0) {
+								dumpFaultInfo();
+							}
+						}
+						else
+						{
+							LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+						}
+					}
+				}
 			}
 			catch (eBadTxCRC &e)
 			{

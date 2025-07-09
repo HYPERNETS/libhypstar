@@ -1,3 +1,12 @@
+Version 1.0.4: (2025-06-27)
+	- Increase sleep in in Hypstar class constructor (see v1.0.1) from 1.5 s 
+	  to 2.5 s and clean up Rx buffer before proceeding
+	- Bail out of AIT loop if serial read times out or is interrupted
+	- Print timestamp at DEBUG log level when setting time
+	- Log at TRACE level when log message is waiting and RxBuf is modified
+	- Check if syslog retrieval succeeded before logging
+	- fix syslog printing order
+
 Version 1.0.3: (2025-05-06)
 	 - Handle missing ACK during baud rate change
 
