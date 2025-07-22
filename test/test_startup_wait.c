@@ -9,7 +9,7 @@ using namespace std;
 int main() {
 	std::string port = HYPSTAR_PORTNAME;
 	auto t1 = std::chrono::high_resolution_clock::now();
-	bool booted = hypstar_wait_for_instrument(port.c_str(), 50);
+	bool booted = hypstar_wait_for_instrument(port.c_str(), 50, TRACE);
 
 	if (booted)
 	{
