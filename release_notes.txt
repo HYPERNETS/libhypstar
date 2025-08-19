@@ -1,3 +1,7 @@
+Version 1.0.5: (2025-07-22)
+	- test_startup_wait bugfix - missing loglevel argument
+	- syslog retrieval crash bugfix
+
 Version 1.0.4: (2025-06-27)
 	- Increase sleep in in Hypstar class constructor (see v1.0.1) from 1.5 s 
 	  to 2.5 s and clean up Rx buffer before proceeding

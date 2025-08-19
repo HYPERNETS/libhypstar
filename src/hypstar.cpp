@@ -253,7 +253,7 @@ bool Hypstar::waitForInstrumentToBoot(std::string portname, float timeout_s, e_l
 
 bool Hypstar::getHardWareInfo(void)
 {
-	exchange(BOOTED, NULL, 0, "BOOTED", 1, 0.01);
+	exchange(BOOTED, NULL, 0, "BOOTED", 1, 0.01, true);
 	memcpy(&hw_info, (rxbuf + 3), sizeof(struct s_booted));
 	if (hw_info.firmware_version_minor < 15) {
 		hw_info.vnir_pixel_count = 0;
@@ -401,7 +401,7 @@ bool Hypstar::enableVM(bool enable)
 	if (!hw_info.vm_available) {
 		return false;
 	}
-	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5);
+	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5, true);
 	return true;
 }
 
@@ -1322,12 +1322,12 @@ bool Hypstar::sendNewFirmwareData(std::string filePath) {
 }
 
 bool Hypstar::saveNewFirmwareData(void) {
-	return exchange(SAVE_NEW_FW, 0, 0, "SAVE_NEW_FW", 1, 30);
+	return exchange(SAVE_NEW_FW, 0, 0, "SAVE_NEW_FW", 1, 30, true);
 }
 
 bool Hypstar::switchFirmwareSlot(void) {
 	memset(&firmware_info, 0, sizeof(s_firwmare_info));
-	return exchange(BOOT_NEW_FW, 0, 0, "BOOT_NEW_FW", 1, 30);
+	return exchange(BOOT_NEW_FW, 0, 0, "BOOT_NEW_FW", 1, 30, true);
 }
 
 bool Hypstar::sendDebugRequest(unsigned char *pPayload, int payloadLength, char *pResponseBuffer) {
@@ -1335,7 +1335,7 @@ bool Hypstar::sendDebugRequest(unsigned char *pPayload, int payloadLength, char 
 		sendCmd(DEBUG_COMMAND, pPayload, payloadLength);
 		return true;
 	}
-	int responseLength =  exchange(DEBUG_COMMAND, pPayload, payloadLength, "DEBUG", 1, 0.1);
+	int responseLength =  exchange(DEBUG_COMMAND, pPayload, payloadLength, "DEBUG", 1, 0.1, true);
 	if (pResponseBuffer && responseLength) {
 		memcpy(pResponseBuffer, rxbuf, responseLength);
 	}
@@ -1804,7 +1804,7 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 	return count;
 }
 
-int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, int retry_count, float timeout_s)
+int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, int retry_count, float timeout_s, bool readSyslog)
 {
 	int receivedByteCount = 0;
 	bool resend = false;
@@ -1829,7 +1829,7 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			{
 				receivedByteCount = readData(rxbuf, timeout_s);
 
-				while (is_log_message_waiting)
+				while (readSyslog && is_log_message_waiting)
 				{
 					is_log_message_waiting = false;
 					s_log_item l;
@@ -1924,7 +1924,7 @@ int Hypstar::getPacketedData(char cmd, unsigned char * pPacketParams, unsigned s
 	do
 	{
 		LOG_DEBUG("packet=%hu/%hu, data_len=%hu\n", *packet_id + 1, packet_count, data_len);
-		exchange(cmd, param_holder, packet_param_len, pCommandNameString);
+		exchange(cmd, param_holder, packet_param_len, pCommandNameString, true);
 		data_len = *((unsigned short*)(rxbuf + 1)) - 1 - 2 - 2 - 2 - 1;
 		packet_count = *((unsigned short*)(rxbuf + 5));
 		memcpy(dataset_tail, rxbuf + 7, data_len);
@@ -2009,7 +2009,7 @@ bool Hypstar::sendAndWaitForAcknowledge(unsigned char cmd, unsigned char* pPacke
 
 	try
 	{
-		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString, 1, 2);
+		receivedByteCount = exchange(cmd, pPacketParams, packetParamLength, pCommandNameString, 1, 2, false);
 
 		if ((rxbuf[0] != ACK))
 		{

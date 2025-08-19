@@ -413,7 +413,7 @@ class Hypstar
 		bool sendAndWaitForDone(unsigned char cmd, unsigned char* pPacketParams, unsigned short paramLength, const char* pCommandNameString, float timeout_s = 1);
 		bool sendAndWaitForAckAndDone(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, float timeout_s);
 		int readData(unsigned char *pRxBuf, float timeout_s = READTIMEOUT);
-		int exchange(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, int retry_count = 5, float timeout_s = 0.5);
+		int exchange(unsigned char cmd, unsigned char * pPacketParams, unsigned short paramLength, const char * pCommandNameString, int retry_count = 5, float timeout_s = 0.5, bool readSyslog = true);
 		int getPacketedData(char cmd, unsigned char * pPacketParams, unsigned short paramLength, unsigned char * pTargetMemory, const char * pCommandNameString);
 		bool sendPacketedData(const char commandId, unsigned char * pDataSet, int datasetLength, const char *pCommandIdtring);
 		void outputStream(FILE *stream, const char * type, const char* fmt, ...);
