@@ -1,3 +1,7 @@
+Version 1.0.6: (2025-10-09)
+	- test_firmware_update loglevel bugfix
+	- test_firmware_update switches to 115.2 kbaud
+
 Version 1.0.5: (2025-07-22)
 	- test_startup_wait bugfix - missing loglevel argument
 	- syslog retrieval crash bugfix
