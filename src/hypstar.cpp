@@ -477,7 +477,6 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 			else if (rxbuf[0] != VM_STATUS) {
 				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 				hnport->emptyInputBuf();
-//				sendCmd(RESEND);
 				continue;
 			}
 			if (rxbuf[0] == VM_STATUS) {
@@ -1001,7 +1000,6 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					else if (rxbuf[0] != AUTOINT_STATUS) {
 						LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 						hnport->emptyInputBuf();
-						sendCmd(RESEND);
 						continue;
 					}
 
@@ -1043,7 +1041,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 
 						dbg_out << "vnir=" << status.spectrum_config.vnir << ", swir=" << status.spectrum_config.swir \
 							<< ", radiance=" << status.spectrum_config.radiance << ", irradiance=" \
-							<< status.spectrum_config.irradiance << " , slot=" << status.memory_slot_id;
+							<< status.spectrum_config.irradiance << ", slot=" << status.memory_slot_id;
 						LOG_DEBUG("%s\n", dbg_out.str().c_str());
 
 						// save last capture integration time, to provide correct read timeout, since DARK automatic integration time uses that
