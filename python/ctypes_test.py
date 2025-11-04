@@ -322,5 +322,13 @@ class CtypeTests(unittest.TestCase):
 			assert type(e) == ValueError
 			assert str(e) == f'Array length must be >= 0, not {count}'
 
+	def test_VM_getting_status(self):
+		self.radiometer.set_log_level(HypstarLogLevel.TRACE)
+		self.radiometer.VM_enable(True)
+		s = self.radiometer.VM_get_status()
+		self.radiometer.VM_enable(False)
+		print(s)
+
+
 if __name__ == '__main__':
 	unittest.main()

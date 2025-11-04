@@ -405,6 +405,22 @@ bool Hypstar::enableVM(bool enable)
 	return true;
 }
 
+bool Hypstar::getVmStatus(struct VM_Status_t *pTarget)
+{
+	try
+	{
+		LOG_DEBUG("VM status requested\n");
+		exchange(VM_GET_STATUS, NULL, 0, "VM_GET_STATUS", 2, 0.2);
+		memcpy(pTarget, (rxbuf + 3), sizeof(struct VM_Status_t));
+	}
+	catch (eHypstar &e)
+	{
+		LOG_ERROR("Failed to get VM status\n");
+		return false;
+	}
+	return true;
+}
+
 bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count) {
 	if (!hw_info.vm_available) {
 		return false;
@@ -2552,5 +2568,15 @@ bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source so
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
 	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget, scan_count);
+
+}
+
+bool hypstar_VM_get_status(hypstar_t *hs, struct VM_Status_t *pTarget) {
+	if (hs == NULL)
+	{
+		return 0;
+	}
+	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
+	return instance->getVmStatus(pTarget);
 
 }

@@ -1,3 +1,6 @@
+Version 1.1.0 (2025-11-04):
+	- added support for getting VM status (voltages, currents, temperatures)
+
 Version 1.0.6: (2025-10-09)
 	- test_firmware_update loglevel bugfix
 	- test_firmware_update switches to 115.2 kbaud

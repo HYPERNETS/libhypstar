@@ -113,6 +113,7 @@
 #define SEL_VM_SRC 0xD1
 #define VM_SRC_ON 0xD2
 #define VM_MEASURE 0xD3
+#define VM_GET_STATUS 0xD4
 #define CAPTURE_VM_IMG 0xD8
 
 #define GET_VM_IMG 0xD9
@@ -693,5 +694,7 @@ struct __attribute__((__packed__)) VM_Status_t {
 	float						temp_sink;
 	float						led_current;
 	float						led_voltage;
+	float						tec_voltage;
+	float						tec_current;
 };
 #endif
