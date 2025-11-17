@@ -534,6 +534,13 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 		return false;
 	}
 
+	// check if we actually got envlog packet
+	if (rxbuf[0] != ENV_DATA)
+	{
+		LOG_ERROR("Got something else instead of envlog (%.2X %.2X %.2X %.2X ...)\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+		return false;
+	}
+
 	// energy meter info has changed new hardware version
 	/* 2 power monitors x4 channels each
 	 * FW < 0.15.x returns info only on channels enabled

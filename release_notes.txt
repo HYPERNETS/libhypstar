@@ -3,6 +3,7 @@ Version 1.1.0 (2025-11-04):
 	- don't request resending unexpected packet when waiting for AIT
 	- add counter to LED source status printouts (debug loglevel)
 	- catch eSerialReadTimeout exception in measureVM
+	- check if we actually got envlog before unpacking
 
 Version 1.0.6: (2025-10-09)
 	- test_firmware_update loglevel bugfix
