@@ -437,6 +437,7 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 	};
 
 	EXCHANGE(VM_MEASURE, (unsigned char *) &request, sizeof(s_vm_measurement_request_packet));
+	int counter = 1;
 	while(true)
 	{
 		try
@@ -481,7 +482,10 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 			}
 			if (rxbuf[0] == VM_STATUS) {
 				vm_status = (VM_Status_t *) &rxbuf[3];
-				LOG_INFO("VM setpoint: %2.2f, VM temperature: %2.2f, VM sink temp: %2.2f, current setting: %2.2f, voltage: %2.4f V\n", vm_status->temp_setpoint, vm_status->temp_current, vm_status->temp_sink, vm_status->led_current, vm_status->led_voltage);
+				LOG_INFO("%d: VM setpoint: %2.2f, VM temperature: %2.2f, VM sink temp: %2.2f, current setting: %2.2f, voltage: %2.4f V\n", 
+						counter, vm_status->temp_setpoint, vm_status->temp_current, 
+						vm_status->temp_sink, vm_status->led_current, vm_status->led_voltage);
+				counter++;
 			}
 	}
 	e_radiometer radiometer = source == VM_LIGHT_VIS ? VNIR : SWIR;
