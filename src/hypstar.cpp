@@ -405,6 +405,22 @@ bool Hypstar::enableVM(bool enable)
 	return true;
 }
 
+bool Hypstar::getVmStatus(struct VM_Status_t *pTarget)
+{
+	try
+	{
+		LOG_DEBUG("VM status requested\n");
+		exchange(VM_GET_STATUS, NULL, 0, "VM_GET_STATUS", 2, 0.2);
+		memcpy(pTarget, (rxbuf + 3), sizeof(struct VM_Status_t));
+	}
+	catch (eHypstar &e)
+	{
+		LOG_ERROR("Failed to get VM status\n");
+		return false;
+	}
+	return true;
+}
+
 bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count) {
 	if (!hw_info.vm_available) {
 		return false;
@@ -421,18 +437,20 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 	};
 
 	EXCHANGE(VM_MEASURE, (unsigned char *) &request, sizeof(s_vm_measurement_request_packet));
+	int counter = 1;
 	while(true)
 	{
 		try
-			{
-				readData(rxbuf, 20);
-			}
+		{
+			readData(rxbuf, 20);
+		}
+		catch (LibHypstar::eSerialReadTimeout &e){
+			LOG_ERROR("Serial timeout exception?\n");
+			return false;
+		}
 //			catch (ePacketLengthMismatch &e)
 //			{
 //				LOG_ERROR("Bad packet length!\n");
-//			}
-//			catch (LibHypstar::eSerialReadTimeout &e){
-//				LOG_ERROR("Serial timeout exception?\n");
 //			}
 //			catch (LibHypstar::eSerialSelectInterrupted &e) {
 //				LOG_ERROR("Serial select interrupted\n");
@@ -441,33 +459,35 @@ bool Hypstar::measureVM(e_entrance entrance, e_vm_light_source source, unsigned 
 //				// probably capture timeout, rethrow
 //				throw e;
 //			}
-			catch (eHypstar &e)
+		catch (eHypstar &e)
+		{
+			if ((rxbuf[0] == NAK) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == STATUS_TIMEOUT))
 			{
-				if ((rxbuf[0] == NAK) && (rxbuf[3] == VM_MEASURE) && (rxbuf[4] == STATUS_TIMEOUT))
-				{
-					// capture VM command timed out on reaching setpoint
-					LOG_ERROR("VM stabilisation timed out\n");
-					return false;
-				}
-				else
-					LOG_ERROR("Something else?\n");
+				// capture VM command timed out on reaching setpoint
+				LOG_ERROR("VM stabilisation timed out\n");
+				return false;
 			}
+			else
+				LOG_ERROR("Something else?\n");
+		}
 
-			if ((rxbuf[0] == DONE) && (rxbuf[3] == VM_MEASURE))
-			{
-				break;
-			}
+		if ((rxbuf[0] == DONE) && (rxbuf[3] == VM_MEASURE))
+		{
+			break;
+		}
 
-			else if (rxbuf[0] != VM_STATUS) {
-				LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
-				hnport->emptyInputBuf();
-//				sendCmd(RESEND);
-				continue;
-			}
-			if (rxbuf[0] == VM_STATUS) {
-				vm_status = (VM_Status_t *) &rxbuf[3];
-				LOG_INFO("VM setpoint: %2.2f, VM temperature: %2.2f, VM sink temp: %2.2f, current setting: %2.2f, voltage: %2.4f V\n", vm_status->temp_setpoint, vm_status->temp_current, vm_status->temp_sink, vm_status->led_current, vm_status->led_voltage);
-			}
+		else if (rxbuf[0] != VM_STATUS) {
+			LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+			hnport->emptyInputBuf();
+			continue;
+		}
+		if (rxbuf[0] == VM_STATUS) {
+			vm_status = (VM_Status_t *) &rxbuf[3];
+			LOG_INFO("%d: VM setpoint: %2.2f, VM temperature: %2.2f, VM sink temp: %2.2f, current setting: %2.2f, voltage: %2.4f V\n", 
+					counter, vm_status->temp_setpoint, vm_status->temp_current, 
+					vm_status->temp_sink, vm_status->led_current, vm_status->led_voltage);
+			counter++;
+		}
 	}
 	e_radiometer radiometer = source == VM_LIGHT_VIS ? VNIR : SWIR;
 	unsigned short vit = source == VM_LIGHT_VIS ? integration_time : 0;
@@ -511,6 +531,13 @@ bool Hypstar::getEnvironmentLogEntry(struct s_environment_log_entry *pTarget, un
 	catch (eHypstar &e)
 	{
 		LOG_ERROR("Failed to get envlog\n");
+		return false;
+	}
+
+	// check if we actually got envlog packet
+	if (rxbuf[0] != ENV_DATA)
+	{
+		LOG_ERROR("Got something else instead of envlog (%.2X %.2X %.2X %.2X ...)\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 		return false;
 	}
 
@@ -985,7 +1012,6 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 					else if (rxbuf[0] != AUTOINT_STATUS) {
 						LOG_ERROR("Got unexpected packet %02x %02x %02x %02x\n", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
 						hnport->emptyInputBuf();
-						sendCmd(RESEND);
 						continue;
 					}
 
@@ -1027,7 +1053,7 @@ unsigned short Hypstar::captureSpectra(enum e_radiometer spectrumType, enum e_en
 
 						dbg_out << "vnir=" << status.spectrum_config.vnir << ", swir=" << status.spectrum_config.swir \
 							<< ", radiance=" << status.spectrum_config.radiance << ", irradiance=" \
-							<< status.spectrum_config.irradiance << " , slot=" << status.memory_slot_id;
+							<< status.spectrum_config.irradiance << ", slot=" << status.memory_slot_id;
 						LOG_DEBUG("%s\n", dbg_out.str().c_str());
 
 						// save last capture integration time, to provide correct read timeout, since DARK automatic integration time uses that
@@ -2552,5 +2578,13 @@ bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source so
 	}
 	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
 	return instance->measureVM(entrance, source, integration_time, current, pSpectraTarget, scan_count);
+}
 
+bool hypstar_VM_get_status(hypstar_t *hs, struct VM_Status_t *pTarget) {
+	if (hs == NULL)
+	{
+		return 0;
+	}
+	Hypstar *instance = static_cast<Hypstar *>(hs->hs_instance);
+	return instance->getVmStatus(pTarget);
 }

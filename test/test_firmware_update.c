@@ -89,12 +89,12 @@ int main(int argc, char **argv) {
 	printf("Attempting to upload new firmware %s\n", fw_path.c_str());
 	std::string port = HYPSTAR_PORTNAME;
 //	port = "/dev/ttyUSB0";
-	Hypstar *hs = Hypstar::getInstance(port);
+	e_loglevel lvl = TRACE;
+	Hypstar *hs = Hypstar::getInstance(port, &lvl);
 	if (!hs)
 		return -1;
-	hs->setLoglevel(DEBUG);
-	hs->setLoglevel(TRACE);
-//	hs->setBaudRate(B_921600);
+	hs->setLoglevel(lvl);
+	hs->setBaudRate(B_115200);
 	hs->getFirmwareInfo();
 
 	int previousFwSlot = hs->firmware_info.current_flash_slot;
@@ -102,7 +102,6 @@ int main(int argc, char **argv) {
 			hs->firmware_info.firmware_version_minor, hs->firmware_info.firmware_version_revision, hs->firmware_info.current_flash_slot);
 
 	s_firwmare_info old_fw = hs->firmware_info;
-//	memcpy(old_fw, hs->firmware_info, sizeof(struct Hypstar::s_firmware_info));
 
 	hs->sendNewFirmwareData(fw_path.c_str());
 	hs->saveNewFirmwareData();

@@ -9,6 +9,7 @@ from .data_structs.environment_log import EnvironmentLogEntry
 from .data_structs.image import HypstarImage
 from .data_structs.spectrum_raw import RadiometerEntranceType, RadiometerType, HypstarSpectrum
 from .data_structs.varia import HypstarAutoITStatus, ValidationModuleLightType
+from .data_structs.vm_status import VMStatus
 
 from logging import debug
 
@@ -218,6 +219,13 @@ class Hypstar:
 			raise Exception("Did not succeed in measuring VM light!")
 		return spectra
 
+	def VM_get_status(self):
+		itm = VMStatus()
+		r = self.lib.hypstar_VM_get_status(self.handle, pointer(itm))
+		if not r:
+			raise Exception("Did not get VM Status. Is it on?")
+		return itm;
+
 	def define_argument_types(self):
 		self.lib.hypstar_init.argtypes = [c_void_p, c_void_p, c_void_p]
 		self.lib.hypstar_init.restype = c_void_p
@@ -244,6 +252,7 @@ class Hypstar:
 		self.lib.hypstar_VM_enable.argtypes = [c_void_p, c_uint8]
 		self.lib.hypstar_VM_set_current.argtypes = [c_void_p, c_float]
 		self.lib.hypstar_VM_measure.argtypes = [c_void_p, RadiometerEntranceType, ValidationModuleLightType, c_uint16, c_float, c_void_p, c_uint16]
+		self.lib.hypstar_VM_get_status.argtypes = [c_void_p, c_void_p]
 
 	def callback_test_fn(self, it_status):
 		print(type(it_status))

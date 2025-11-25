@@ -384,6 +384,14 @@ class Hypstar
 		 * \return status of execution: True if successful, false if not.
 		 */
 		bool measureVM(e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t count = 100);
+
+		/**
+		 * \brief	Gets internal status of validation module (temperatures, voltages, currents)
+		 * \param pTarget Pointer to VM_Status_t response holding instance
+		 * \return status of execution: True if successful, false if not.
+		 */
+		bool getVmStatus(struct VM_Status_t *pTarget);
+
 		/********************* END OF UNSAFE **********************/
 
 		/* General information about the instrument */
@@ -493,6 +501,7 @@ extern "C"
 	bool hypstar_VM_enable(hypstar_t *hs, uint8_t enable);
 	bool hypstar_VM_set_current(hypstar_t *hs, float current);
 	bool hypstar_VM_measure(hypstar_t *hs, e_entrance entrance, e_vm_light_source source, unsigned short integration_time, float current, s_spectrum_dataset *pSpectraTarget, uint16_t scan_count);
+	bool hypstar_VM_get_status(hypstar_t *hs, struct VM_Status_t *pTarget);
 	struct s_libhypstar_version getLibHypstarVersion(void);
 }
 

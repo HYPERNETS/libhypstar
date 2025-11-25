@@ -1,3 +1,14 @@
+Version 1.1.0 (2025-11-04):
+	- added support for getting VM status (voltages, currents, temperatures)
+	- don't request resending unexpected packet when waiting for AIT
+	- add counter to LED source status printouts (debug loglevel)
+	- catch eSerialReadTimeout exception in measureVM
+	- check if we actually got envlog before unpacking
+
+Version 1.0.6: (2025-10-09)
+	- test_firmware_update loglevel bugfix
+	- test_firmware_update switches to 115.2 kbaud
+
 Version 1.0.5: (2025-07-22)
 	- test_startup_wait bugfix - missing loglevel argument
 	- syslog retrieval crash bugfix
