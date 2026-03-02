@@ -26,6 +26,7 @@ int main() {
 	print_array("VIS LIN COEFFS", hs->calibration_coefficients_basic.vnir_linearity_coefficients, 8);
 	print_array("SWIR WL COEFFS", hs->calibration_coefficients_basic.swir_wavelength_coefs, 5);
 	print_array("ACCEL REF", hs->calibration_coefficients_basic.accelerometer_horizontal_reference, 3);
+	printf("VNIR GAIN: %d, offset: %d\n", hs->calibration_coefficients_basic.vnir_gain, hs->calibration_coefficients_basic.vnir_offset);
 
 	std::cout << "SN: " << hs->extended_calibration_coefficients.instrument_serial_number << "\n";
 	printf("CAL DATE:%d-%d-%d\n", hs->extended_calibration_coefficients.calibration_year, hs->extended_calibration_coefficients.calibration_month, hs->extended_calibration_coefficients.calibration_day);
