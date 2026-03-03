@@ -1642,12 +1642,20 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		logBinPacket("<<", e.pBuf, e.packetLengthReceived);
 
 		// try reading out extra, maybe we are getting mid-packet or something
-		count = readData(pRxBuf, timeout_s);
-		if (count) {
-			LOG_DEBUG("Got extra %d bytes", count);
-			logBinPacket("<<", pRxBuf, count);
+		try {
+			LOG_DEBUG("Try to read more data\n");
+			count = readData(pRxBuf, timeout_s);
+			if (count) {
+				LOG_DEBUG("Got extra %d bytes", count);
+				logBinPacket("<<", pRxBuf, count);
+			}
 		}
-		throw eBadResponse();
+		catch (LibHypstar::eSerialReadTimeout &e) 
+		{
+			LOG_DEBUG("No more data received\n");
+		}
+
+		throw eBadLength();
 	}
 
 	auto t2 = std::chrono::high_resolution_clock::now();
@@ -1903,6 +1911,7 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			catch (ePacketLengthMismatch &e) {
 				LOG_DEBUG("Got %d bytes instead of %d\n", e.packetLengthReceived, e.lengthInPacket);
 				logBinPacket("<<", e.pBuf, e.packetLengthReceived);
+				resend = true;
 				continue;
 			}
 			catch (ePacketReceivedTooShort &e) {
@@ -1958,7 +1967,7 @@ int Hypstar::getPacketedData(char cmd, unsigned char * pPacketParams, unsigned s
 	do
 	{
 		LOG_DEBUG("packet=%hu/%hu, data_len=%hu\n", *packet_id + 1, packet_count, data_len);
-		exchange(cmd, param_holder, packet_param_len, pCommandNameString, true);
+		exchange(cmd, param_holder, packet_param_len, pCommandNameString, 5, 0.5, true);
 		data_len = *((unsigned short*)(rxbuf + 1)) - 1 - 2 - 2 - 2 - 1;
 		packet_count = *((unsigned short*)(rxbuf + 5));
 		memcpy(dataset_tail, rxbuf + 7, data_len);
