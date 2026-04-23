@@ -277,66 +277,74 @@ bool Hypstar::getHardWareInfo(void)
 bool Hypstar::getCalibrationCoefficientsBasic(void)
 {
 	struct s_calibration_coefficients_raw *coefs_raw;
-		char tmp[15];
-		int rx_count;
-		int i;
+	char tmp[15];
+	int rx_count;
+	int i;
 
-		// get standard set of calibration coefficients
-		rx_count = REQUEST(GET_CAL_COEF);
+	// get standard set of calibration coefficients
+	rx_count = REQUEST(GET_CAL_COEF);
 
-		if ((rx_count - 4) != (int)sizeof(struct s_calibration_coefficients_raw))
-		{
-			LOG_ERROR("Received calibration coefficients data packet (%d) does not match the size of packet structure (%zu)\n", (rx_count - 4), sizeof(struct s_calibration_coefficients_unpacked));
-			return false;
-		}
+	if ((rx_count - 4) < (int)sizeof(struct s_calibration_coefficients_raw)-3)	// -3 to ensure backwards compatibility
+	{
+		LOG_ERROR("Received calibration coefficients data packet (%d) does not match the size of packet structure (%zu)\n", (rx_count - 4), sizeof(struct s_calibration_coefficients_unpacked));
+		return false;
+	}
 
-		coefs_raw = (struct s_calibration_coefficients_raw *)(rxbuf + 3);
+	coefs_raw = (struct s_calibration_coefficients_raw *)(rxbuf + 3);
 
-		// vnir wl coefs
-		for (i = 0; i < 6; i++)
-		{
-			memcpy(tmp, coefs_raw->vnir_wavelength_coefficientss_raw + i * 14, 14);
-			tmp[14] = 0;
-			calibration_coefficients_basic.vnir_wavelength_coefficients[i] = atof(tmp);
+	// vnir wl coefs
+	for (i = 0; i < 6; i++)
+	{
+		memcpy(tmp, coefs_raw->vnir_wavelength_coefficientss_raw + i * 14, 14);
+		tmp[14] = 0;
+		calibration_coefficients_basic.vnir_wavelength_coefficients[i] = atof(tmp);
 
-			LOG_DEBUG("VNIR wl coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.vnir_wavelength_coefficients[i]);
-		}
+		LOG_DEBUG("VNIR wl coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.vnir_wavelength_coefficients[i]);
+	}
 
-		// vnir lin coefs
-		for (i = 0; i < 8; i++)
-		{
-			memcpy(tmp, coefs_raw->vnir_linerity_coefficients_raw + i * 14, 14);
-			tmp[14] = 0;
-			calibration_coefficients_basic.vnir_linearity_coefficients[i] = atof(tmp);
+	// vnir lin coefs
+	for (i = 0; i < 8; i++)
+	{
+		memcpy(tmp, coefs_raw->vnir_linerity_coefficients_raw + i * 14, 14);
+		tmp[14] = 0;
+		calibration_coefficients_basic.vnir_linearity_coefficients[i] = atof(tmp);
 
-			LOG_DEBUG("VNIR lin coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.vnir_linearity_coefficients[i]);
-		}
+		LOG_DEBUG("VNIR lin coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.vnir_linearity_coefficients[i]);
+	}
 
-		// swir wl coefs
-		for (i = 0; i < 5; i++)
-		{
-			memcpy(tmp, coefs_raw->swir_wavelength_coefficients_raw + i * 14, 14);
-			tmp[14] = 0;
-			calibration_coefficients_basic.swir_wavelength_coefs[i] = atof(tmp);
+	// swir wl coefs
+	for (i = 0; i < 5; i++)
+	{
+		memcpy(tmp, coefs_raw->swir_wavelength_coefficients_raw + i * 14, 14);
+		tmp[14] = 0;
+		calibration_coefficients_basic.swir_wavelength_coefs[i] = atof(tmp);
 
-			// remove CR
-			for (int j = 0; j < 14; j++)
-				if (tmp[j] == 0x0D)
-				{
-					tmp[j] = 0;
-					break;
-				}
+		// remove CR
+		for (int j = 0; j < 14; j++)
+			if (tmp[j] == 0x0D)
+			{
+				tmp[j] = 0;
+				break;
+			}
 
-			LOG_DEBUG("SWIR wl coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.swir_wavelength_coefs[i]);
-		}
+		LOG_DEBUG("SWIR wl coef %d: \"%s\" = %+.7e\n", i, tmp, calibration_coefficients_basic.swir_wavelength_coefs[i]);
+	}
 
-		// accelerometer cal coefs
-		for (i = 0; i < 3; i++)
-		{
-			calibration_coefficients_basic.accelerometer_horizontal_reference[i] = coefs_raw->accelerometer_horizontal_reference[i];
-			LOG_DEBUG("Accelerometer cal coef %d: %hu\n", i, calibration_coefficients_basic.accelerometer_horizontal_reference[i]);
-		}
-		return true;
+	// accelerometer cal coefs
+	for (i = 0; i < 3; i++)
+	{
+		calibration_coefficients_basic.accelerometer_horizontal_reference[i] = coefs_raw->accelerometer_horizontal_reference[i];
+		LOG_DEBUG("Accelerometer cal coef %d: %hu\n", i, calibration_coefficients_basic.accelerometer_horizontal_reference[i]);
+	}
+
+
+	if ((rx_count - 4) == (int)sizeof(struct s_calibration_coefficients_raw)) {
+		// vnir gain/offset
+		calibration_coefficients_basic.vnir_gain = coefs_raw->vnir_gain;
+		calibration_coefficients_basic.vnir_offset = coefs_raw->vnir_offset;
+		LOG_DEBUG("VNIR gain: %d, offset: %d \n", calibration_coefficients_basic.vnir_gain, calibration_coefficients_basic.vnir_offset);
+	}
+	return true;
 }
 
 bool Hypstar::getCalibrationCoefficientsExtended(void)
@@ -1634,12 +1642,20 @@ int Hypstar::readData(unsigned char *pRxBuf, float timeout_s)
 		logBinPacket("<<", e.pBuf, e.packetLengthReceived);
 
 		// try reading out extra, maybe we are getting mid-packet or something
-		count = readData(pRxBuf, timeout_s);
-		if (count) {
-			LOG_DEBUG("Got extra %d bytes", count);
-			logBinPacket("<<", pRxBuf, count);
+		try {
+			LOG_DEBUG("Try to read more data\n");
+			count = readData(pRxBuf, timeout_s);
+			if (count) {
+				LOG_DEBUG("Got extra %d bytes", count);
+				logBinPacket("<<", pRxBuf, count);
+			}
 		}
-		throw eBadResponse();
+		catch (LibHypstar::eSerialReadTimeout &e) 
+		{
+			LOG_DEBUG("No more data received\n");
+		}
+
+		throw eBadLength();
 	}
 
 	auto t2 = std::chrono::high_resolution_clock::now();
@@ -1895,6 +1911,7 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 			catch (ePacketLengthMismatch &e) {
 				LOG_DEBUG("Got %d bytes instead of %d\n", e.packetLengthReceived, e.lengthInPacket);
 				logBinPacket("<<", e.pBuf, e.packetLengthReceived);
+				resend = true;
 				continue;
 			}
 			catch (ePacketReceivedTooShort &e) {
@@ -1950,7 +1967,7 @@ int Hypstar::getPacketedData(char cmd, unsigned char * pPacketParams, unsigned s
 	do
 	{
 		LOG_DEBUG("packet=%hu/%hu, data_len=%hu\n", *packet_id + 1, packet_count, data_len);
-		exchange(cmd, param_holder, packet_param_len, pCommandNameString, true);
+		exchange(cmd, param_holder, packet_param_len, pCommandNameString, 5, 0.5, true);
 		data_len = *((unsigned short*)(rxbuf + 1)) - 1 - 2 - 2 - 2 - 1;
 		packet_count = *((unsigned short*)(rxbuf + 5));
 		memcpy(dataset_tail, rxbuf + 7, data_len);

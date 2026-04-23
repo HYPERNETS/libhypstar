@@ -320,6 +320,8 @@ struct __attribute__((__packed__)) s_calibration_coefficients_raw
 	int8_t vnir_linerity_coefficients_raw[14 * 8];
 	int8_t swir_wavelength_coefficients_raw[14 * 5];
 	int16_t accelerometer_horizontal_reference[3];
+	uint8_t vnir_gain;
+	int16_t vnir_offset;
 };
 
 struct s_calibration_coefficients_unpacked
@@ -328,6 +330,8 @@ struct s_calibration_coefficients_unpacked
 	double vnir_linearity_coefficients[8];
 	double swir_wavelength_coefs[5];
 	int16_t accelerometer_horizontal_reference[3];
+	uint8_t vnir_gain;
+	int16_t vnir_offset;
 };
 
 
