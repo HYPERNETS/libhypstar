@@ -601,7 +601,9 @@ struct __attribute__((__packed__)) s_spectrum_dataset
 enum __attribute__((__packed__)) e_log_type
 {
 	LOG_INFO = 0x01,
+	LOG_WARNING = 0x05,
 	LOG_ASSERT = 0x0A,
+	LOG_DEBUG = 0x0D,
 	LOG_ERROR = 0x0E
 };
 

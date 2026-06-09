@@ -1887,7 +1887,26 @@ int Hypstar::exchange(unsigned char cmd, unsigned char* pPacketParams, unsigned 
 						}
 						else
 						{
-							LOG_DEBUG("SYSLOG DEBUG [%" PRId64 "]: %.*s\n", l.timestamp, l.body_length, l.body.message);
+							std::string c_level;
+							switch (l.log_type) {
+								case LOG_INFO:
+									c_level = "INFO";
+									break;
+								case LOG_DEBUG:
+									c_level = "DEBUG";
+									break;
+								case LOG_WARNING:
+									c_level = "WARNING";
+									break;
+								case LOG_ASSERT:
+									c_level = "ASSERT";
+									break;
+								default:
+									c_level = "ERROR";
+									break;
+							}
+
+							LOG_DEBUG("SYSLOG %s [%" PRId64 "]: %.*s\n", c_level.c_str(), l.timestamp, l.body_length, l.body.message);
 						}
 					}
 				}
