@@ -410,6 +410,11 @@ bool Hypstar::enableVM(bool enable)
 		return false;
 	}
 	exchange(VM_ON, (unsigned char *) &enable, (unsigned short)sizeof(uint8_t), "VM_ON", 2, 5, true);
+	
+	// wait for VM to boot
+	if (enable)
+		sleep(2);
+
 	return true;
 }
 
